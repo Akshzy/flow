@@ -1,0 +1,76 @@
+name: CI
+
+# Foundational CI checks for Phase 1 (Technical Foundation).
+# NOTE: this workflow has not been executed locally (no GitHub Actions runner
+# in the development environment); it runs the same commands that were
+# verified locally. See HANDOFF_01.md.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  backend:
+    name: Backend (tests, lint, types)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: floww_test
+        ports:
+          - 55433:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      # Use the service container instead of the embedded PostgreSQL.
+      FLOWW_TEST_EXTERNAL_DB: "1"
+      DATABASE_URL: postgresql+psycopg://postgres:postgres@127.0.0.1:55433/floww_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install backend dependencies
+        run: pip install -e ".[dev]"
+      - name: Lint (ruff)
+        run: python -m ruff check .
+      - name: Format check (ruff)
+        run: python -m ruff format --check .
+      - name: Type check (mypy)
+        run: python -m mypy app
+      - name: Tests (pytest, against PostgreSQL service)
+        run: python -m pytest -v
+
+  frontend:
+    name: Frontend (build, lint, types)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install frontend dependencies
+        run: npm ci
+      - name: Lint (eslint)
+        run: npm run lint
+      - name: Type check (tsc)
+        run: npm run typecheck
+      - name: Build (next build)
+        run: npm run build

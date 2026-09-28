@@ -2,6 +2,86 @@
 
 This repository must be developed strictly one phase at a time.
 
+## Repository structure
+
+```text
+backend/    FastAPI (Python) backend foundation
+  app/        application (config, logging, errors, db, middleware, main)
+  migrations/ Alembic migrations
+  tests/      pytest suite (unit, API, integration, migration, failure)
+frontend/   Next.js 15 + TypeScript + Tailwind 4 frontend foundation
+scripts/    pg.mjs — embedded PostgreSQL lifecycle (dev/test)
+.github/    CI workflow (backend + frontend checks)
+```
+
+## Getting started (Phase 1)
+
+Prerequisites: Python 3.12+ (validated on 3.14), Node 22+.
+
+### 1. Install dependencies
+
+```bash
+# backend (virtualenv recommended)
+cd backend
+python -m venv .venv && .venv/Scripts/pip install -e ".[dev]"   # Windows
+# or: python -m venv .venv && .venv/bin/pip install -e ".[dev]"  # Linux/macOS
+
+# frontend + embedded PostgreSQL binaries (from the repository root)
+cd ..
+npm install
+cd frontend && npm install && cd ..
+```
+
+### 2. Configure
+
+```bash
+cp backend/.env.example backend/.env   # then edit values (never commit)
+```
+
+### 3. Start the database and the backend
+
+```bash
+npm run db:up                        # embedded PostgreSQL (port 55432)
+cd backend && python scripts/dev.py  # uvicorn on http://127.0.0.1:8000
+cd ..
+```
+
+- `GET /health` — liveness (process up; no dependency checks)
+- `GET /ready` — readiness (verifies database connectivity; 503 when down)
+
+### 4. Run migrations
+
+```bash
+cd backend && DATABASE_URL=... python -m alembic upgrade head
+cd ..
+# or set DATABASE_URL in backend/.env and run: python -m alembic upgrade head
+```
+
+### 5. Tests and checks
+
+```bash
+# backend
+cd backend
+python -m pytest            # tests (fresh embedded PostgreSQL per session)
+python -m ruff check .      # lint
+python -m ruff format --check .
+python -m mypy app          # type check
+cd ..
+
+# frontend
+cd frontend
+npm run build
+npm run typecheck
+npm run lint
+cd ..
+```
+
+### 6. Stop the database
+
+```bash
+npm run db:down
+```
+
 ## Non-negotiable rule
 
 Pi MUST NOT begin Phase N+1 until Phase N has:

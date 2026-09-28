@@ -1,0 +1,15 @@
+{
+  "name": "floww",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Floww (OrderFlow AI) - multi-tenant SaaS for order capture from messaging channels",
+  "scripts": {
+    "db:up": "node scripts/pg.mjs up",
+    "db:down": "node scripts/pg.mjs down",
+    "db:fresh": "node scripts/pg.mjs up --fresh",
+    "db:status": "node scripts/pg.mjs status"
+  },
+  "devDependencies": {
+    "embedded-postgres": "17.5.0-beta.15"
+  }
+}
