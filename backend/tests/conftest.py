@@ -117,7 +117,7 @@ def migrated_database(database_url: str) -> str:
 
 
 @pytest.fixture()
-def app_settings(database_url: str):
+def app_settings(migrated_database: str):
     from app.config import Settings
 
     return Settings()

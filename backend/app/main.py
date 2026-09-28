@@ -1,4 +1,4 @@
-"""Floww backend application (Phase 1 — Technical Foundation).
+"""Floww backend application.
 
 Provides the API foundation:
 
@@ -9,6 +9,8 @@ Provides the API foundation:
 - consistent error handling (see ``app.errors``)
 - structured logging with secret redaction (see ``app.logging``)
 - request ID middleware (see ``app.middleware``)
+- authentication + multi-tenancy API (Phase 2, see ``app.routers.auth`` and
+  ``app.routers.tenants``)
 
 The app is created through the ``create_app`` factory so configuration is
 resolved at startup (not at import time). Run with:
@@ -23,14 +25,17 @@ from typing import Any
 import structlog
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app import __version__
 from app.config import Settings, load_settings
-from app.db import create_engine, describe_url, ping
+from app.db import create_engine, create_session_factory, describe_url, ping
 from app.logging import configure_logging, get_request_id
 from app.middleware import RequestIdMiddleware
+from app.routers import auth as auth_router
+from app.routers import tenants as tenants_router
 
 _HTTP_ERROR_CODES = {
     400: "bad_request",
@@ -81,6 +86,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         engine = create_engine(settings.database_url)
         app.state.settings = settings
         app.state.engine = engine
+        app.state.session_factory = create_session_factory(engine)
         try:
             # Verify the database connection at startup. A database outage is
             # reported (and observed in logs) but does not crash startup —
@@ -104,6 +110,18 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         openapi_url="/openapi.json" if settings.environment != "production" else None,
     )
     app.add_middleware(RequestIdMiddleware)
+    # CORS: explicit origins from configuration (no wildcard + credentials).
+    # Bearer tokens are used instead of cookies, so CSRF is not applicable.
+    allowed_origins = [
+        origin.strip() for origin in settings.cors_origins.split(",") if origin.strip()
+    ]
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=allowed_origins,
+        allow_credentials=False,
+        allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
+        allow_headers=["Authorization", "Content-Type", "X-Request-Id"],
+    )
 
     # --- Error handlers -----------------------------------------------------
     from app.errors import AppError  # local import to keep module graph simple
@@ -164,6 +182,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             "version": __version__,
             "environment": app_settings.environment,
         }
+
+    app.include_router(auth_router.router)
+    app.include_router(tenants_router.router)
 
     @app.get("/ready")
     async def ready(request: Request) -> JSONResponse:

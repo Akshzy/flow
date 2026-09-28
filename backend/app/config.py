@@ -35,6 +35,8 @@ class Settings(BaseSettings):
     database_url: PostgresDsn
     log_level: str = "INFO"
     log_json: bool = False
+    session_ttl_hours: int = 168  # auth session lifetime (default: 7 days)
+    cors_origins: str = "http://localhost:3000"  # comma-separated allowed origins
 
 
 def _validation_field_names(exc: ValidationError) -> str:

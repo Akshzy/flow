@@ -2,11 +2,11 @@
 
 ## Current phase
 
-Phase 01 — Technical Foundation
+Phase 02 — Authentication and Multi-Tenancy
 
 ## Status
 
-COMPLETE (pending only the git commit/tag recorded below)
+COMPLETE (pending only the git commit/tag/push recorded below)
 
 ## Completed phases
 
@@ -14,42 +14,49 @@ COMPLETE (pending only the git commit/tag recorded below)
   (product, requirements, architecture, data model, integrations, webhook
   spec, AI policy, test strategy, phases, phase gate, decisions, risks).
   No HANDOFF_00.md exists; the provided documents were treated as the Phase 00
-  baseline input to Phase 1 (see DECISIONS.md ADR-006).
-- Phase 01 — Technical Foundation: implemented and verified (see HANDOFF_01.md).
+  baseline input (see DECISIONS.md ADR-006).
+- Phase 01 — Technical Foundation: COMPLETE — commit `ab14529`, tag
+  `phase-01-complete`, pushed to origin and verified remotely
+  (`git ls-remote origin` / `git ls-remote --tags origin`).
+- Phase 02 — Authentication and Multi-Tenancy: implemented and verified
+  (see HANDOFF_02.md).
 
 ## Current objective
 
-Phase 1 is complete. Do not start Phase 2 until the phase-01-complete
+Phase 2 is complete. Do not start Phase 3 until the phase-02-complete
 handoff is reviewed.
 
 ## Last verified commit
 
-To be filled by the phase-01 commit (see HANDOFF_01.md).
+The phase-02 commit (see `git log` after the Phase 2 checkpoint; hash recorded
+in the Phase 2 final report).
 
 ## Last verified tag
 
-To be filled by the phase-01-complete tag (see HANDOFF_01.md).
+`phase-01-complete` (pushed + verified remotely). The `phase-02-complete` tag
+is created at the Phase 2 checkpoint.
 
-## Phase 1 evidence summary
+## Phase 2 evidence summary
 
-- Backend: FastAPI (Python) — config validation, structured logging with
-  secret redaction, consistent error envelope, request-ID middleware,
-  PostgreSQL (psycopg 3) via SQLAlchemy 2.0, Alembic migrations,
-  /health + /ready.
-- Frontend: Next.js 15 + TypeScript + Tailwind 4 — single status page that
-  fetches /health (frontend/backend base integration).
-- Database: embedded PostgreSQL (binaries via npm, `scripts/pg.mjs`);
-  tests run against a fresh cluster per session.
-- Tests: 40/40 passed (`python -m pytest`, exit 0) — unit, API, integration,
-  migration and failure tests.
-- Checks: ruff check / ruff format --check / mypy — all clean (exit 0);
-  frontend build / tsc --noEmit / eslint — all clean (exit 0).
+- Backend: email+password authentication with argon2id hashes; opaque
+  server-side sessions (SHA-256 token hashes, TTL, logout invalidation);
+  users/tenants/tenant_members/auth_sessions schema (migration 0002);
+  authorization via server-side membership checks; tenant-scoped queries;
+  OWNER/MEMBER roles with a DB CHECK constraint; CORS with explicit origins.
+- Frontend: register/login pages, authenticated shell with tenant
+  list/creation/selection and logout (Next.js + TypeScript + Tailwind).
+- Tests: 109/109 backend (`python -m pytest`, exit 0 — includes the 40
+  Phase 1 tests, no regressions); 18/18 frontend (`npm run test`, exit 0).
+- Checks: ruff check / ruff format --check / mypy — all exit 0;
+  frontend tsc --noEmit / eslint / next build — all exit 0.
+- Tenant isolation: cross-tenant GET/PATCH/DELETE → 403, forged UUID → 404,
+  list scoping, data-layer IDOR checks — tested AND verified against the
+  live running application (A→A 200; A→B 403; B→A 403; no token 401).
 
 ## Known unknowns
 
-- The GitHub Actions CI workflow (.github/workflows/ci.yml) has not been
-  executed (no runner in this environment); it runs the same commands that
-  were verified locally.
+- The GitHub Actions CI workflow has not been executed (no runner in this
+  environment); it runs the same commands that were verified locally.
 - The Windows event-loop policy for psycopg async is deprecated in Python
   3.14 (removal slated for 3.16); revisit when targeting a newer Python or
   Linux-only hosting (see DECISIONS.md ADR-005).

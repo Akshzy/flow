@@ -3,7 +3,12 @@
 from typing import Any
 
 from sqlalchemy import text
-from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
+from sqlalchemy.ext.asyncio import (
+    AsyncEngine,
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
 
 
 def create_engine(database_url: str | Any) -> AsyncEngine:
@@ -32,6 +37,15 @@ async def ping(engine: AsyncEngine) -> None:
     """
     async with engine.connect() as connection:
         await connection.execute(text("SELECT 1"))
+
+
+def create_session_factory(engine: AsyncEngine) -> async_sessionmaker[AsyncSession]:
+    """Create the request-scoped session factory for the application.
+
+    ``expire_on_commit=False`` so attributes stay readable after commit
+    (response building does not trigger extra refresh queries).
+    """
+    return async_sessionmaker(bind=engine, expire_on_commit=False)
 
 
 def describe_url(database_url: Any) -> str:

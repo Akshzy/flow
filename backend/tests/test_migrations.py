@@ -93,10 +93,11 @@ def test_migration_from_clean_database(scratch_database: str):
 
     _run_alembic(scratch_database, "head")
 
-    # Verify: alembic_version registered and the baseline table exists.
+    # Verify: alembic_version registered, the baseline table exists, and the
+    # Phase 2 authentication/tenancy tables exist.
     with psycopg.connect(_psycopg_url(scratch_database)) as conn, conn.cursor() as cur:
         cur.execute("SELECT version_num FROM alembic_version")
-        assert cur.fetchone()[0] == "0001"
+        assert cur.fetchone()[0] == "0002"
 
         cur.execute(
             "SELECT column_name FROM information_schema.columns "
@@ -106,10 +107,30 @@ def test_migration_from_clean_database(scratch_database: str):
         assert {"key", "value", "updated_at"} <= columns
 
         cur.execute(
+            "SELECT table_name FROM information_schema.tables "
+            "WHERE table_schema = 'public' ORDER BY table_name"
+        )
+        tables = {row[0] for row in cur.fetchall()}
+        assert {"users", "tenants", "tenant_members", "auth_sessions"} <= tables
+
+        cur.execute(
             "SELECT constraint_name FROM information_schema.table_constraints "
             "WHERE table_name = 'app_meta' AND constraint_type = 'PRIMARY KEY'"
         )
         assert cur.fetchone() is not None
+
+        # User email is unique; membership role is constrained to owner/member.
+        cur.execute(
+            "SELECT constraint_type FROM information_schema.table_constraints "
+            "WHERE table_name = 'users' AND constraint_name = 'uq_users_email'"
+        )
+        assert cur.fetchone()[0] == "UNIQUE"
+        cur.execute(
+            "SELECT pg_get_constraintdef(oid) FROM pg_constraint "
+            "WHERE conname = 'ck_tenant_members_role'"
+        )
+        constraint_def = cur.fetchone()[0]
+        assert "owner" in constraint_def and "member" in constraint_def
 
 
 def test_migration_is_repeatable(scratch_database: str):
@@ -140,6 +161,27 @@ def test_downgrade_removes_schema(scratch_database: str):
         assert cur.fetchone()[0] == 0
         cur.execute("SELECT count(*) FROM alembic_version")
         assert cur.fetchone()[0] == 0
+
+    # Re-upgrade so the database is left in a consistent state.
+    _run_alembic(scratch_database, "head")
+
+
+def test_downgrade_to_0001_removes_phase2_tables(scratch_database: str):
+    """Rolling back to 0001 removes Phase 2 tables and keeps app_meta."""
+    _run_alembic(scratch_database, "head")
+    _run_alembic(scratch_database, "0001", direction="downgrade")
+
+    import psycopg
+
+    with psycopg.connect(_psycopg_url(scratch_database)) as conn, conn.cursor() as cur:
+        cur.execute(
+            "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'"
+        )
+        tables = {row[0] for row in cur.fetchall()}
+        assert {"users", "tenants", "tenant_members", "auth_sessions"}.isdisjoint(tables)
+        assert "app_meta" in tables
+        cur.execute("SELECT version_num FROM alembic_version")
+        assert cur.fetchone()[0] == "0001"
 
     # Re-upgrade so the database is left in a consistent state.
     _run_alembic(scratch_database, "head")

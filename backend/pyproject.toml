@@ -12,6 +12,8 @@ dependencies = [
     "pydantic>=2.7",
     "pydantic-settings>=2.2",
     "structlog>=24.1",
+    "argon2-cffi>=23.0",
+    "email-validator>=2.0",
 ]
 
 [project.optional-dependencies]

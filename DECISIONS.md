@@ -223,3 +223,104 @@ produced by that process).
 
 - All Phase 00 output documents exist in the repository baseline commit.
 - HANDOFF_00.md is absent.
+
+## ADR-007 — Password authentication with argon2id and opaque server-side sessions
+
+Date: Phase 2
+Status: Accepted
+
+### Context
+
+Phase 2 requires Floww user authentication (not Meta authentication, which
+belongs to Phases 03/04). Requirements: secure authentication, session/token
+validation, logout/invalidation, no plaintext passwords, no custom
+cryptography.
+
+### Decision
+
+- Email + password registration; passwords hashed with argon2id
+  (argon2-cffi, OWASP-recommended; library defaults m=64MiB/t=3/p=4).
+- Server-side sessions with opaque bearer tokens: `secrets.token_urlsafe(32)`
+  tokens returned to the client, only the SHA-256 hash persisted
+  (`auth_sessions.token_hash`, indexed by `expires_at`); expiry enforced at
+  lookup (401 `session_expired`, distinct from 401 `unauthorized`).
+- Logout deletes the session row server-side (immediate invalidation).
+- Unknown email and wrong password return the identical generic 401
+  `invalid_credentials` (no account enumeration).
+
+### Alternatives
+
+- JWTs: rejected for Phase 2 — invalidation requires a denylist; opaque
+  sessions give real invalidation without a token-signing secret.
+- passlib/bcrypt: rejected — passlib is unmaintained (bcrypt 4.x
+  incompatibilities); argon2-cffi is current and has verified Python 3.14
+  wheels.
+- Cookies (httpOnly): rejected for Phase 2 — cross-origin cookie handling
+  requires CORS-with-credentials and CSRF protection; bearer tokens avoid
+  both. If cookies are introduced later, cookie security and CSRF become
+  mandatory work (Phase 13 hardening).
+
+### Consequences
+
+Tokens live in browser localStorage (XSS-exposed; mitigated by standard
+Next.js/React escaping; recorded as a known limitation for Phase 13).
+Expired session rows are not removed on access (lazy cleanup deferred to
+Phase 13 hardening).
+
+### Evidence
+
+- tests/test_security.py: argon2id format, salted/unique hashes,
+  verify correct/wrong/malformed, token randomness, hash≠token.
+- tests/test_auth.py: 20 auth tests incl. password-hash-at-rest DB check,
+  expired session → 401 session_expired, logout invalidation (token unusable,
+  other sessions survive), no password in logs.
+- Live run: register → 201, login → 200 token, logout → token unusable (401).
+
+## ADR-008 — Tenant object as the Phase 2 isolation resource; 403/404 distinction
+
+Date: Phase 2
+Status: Accepted
+
+### Context
+
+Phase 2 must prove tenant isolation with cross-tenant GET/UPDATE/DELETE and
+direct-object-ID attacks. DATA_MODEL's tenant-owned business resources
+(connections, conversations, orders, ...) belong to later phases; inventing a
+placeholder resource would violate the phase boundary.
+
+### Decision
+
+- The TENANT itself is the first tenant-owned resource:
+  - `GET /tenants` — tenant-scoped list (only the caller's tenants, via a
+    membership join filtered by user_id).
+  - `GET /tenants/{id}` — requires membership (404 missing, 403 non-member).
+  - `PATCH /tenants/{id}` — OWNER only (rename).
+  - `DELETE /tenants/{id}` — OWNER only (DB-level ON DELETE CASCADE removes
+    memberships).
+- Status codes: 401 unauthorized (missing/invalid/expired token, login
+  failure via `invalid_credentials`), 403 forbidden (exists but no access /
+  wrong role), 404 not_found (missing tenant), 409 conflict (duplicate
+  email), 422 validation_error.
+- Tenant existence is revealed to authenticated users only (403 for
+  non-members); tenant IDs are uuid4 (unguessable), so enumeration is
+  impractical.
+
+### Alternatives
+
+- 404 for non-members (hide tenant existence): rejected — the phase requires
+  distinguishing 401/403/404; uuid4 IDs make enumeration impractical.
+- A generic tenant-owned placeholder resource: rejected — future-phase scope.
+
+### Consequences
+
+Roles limited to OWNER/MEMBER (no premature RBAC). The role column carries a
+DB CHECK constraint (`owner`/`member` only) — invalid roles are rejected by
+the database.
+
+### Evidence
+
+- tests/test_isolation.py: full matrix (A→A allowed, B→B allowed, A→B denied
+  for GET/PATCH/DELETE, B→A denied, member role restrictions, forged UUID →
+  404, list scoping, data-layer IDOR checks, deleted tenant revokes access).
+- tests/test_tenants.py: role CHECK constraint rejects 'admin' at the DB level.
+- Live run: A→A 200; A→B GET/PATCH/DELETE 403; B→A 403; no token 401.
