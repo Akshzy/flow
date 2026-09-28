@@ -19,6 +19,13 @@ External platforms
 → Seller Review
 → Export
 
+## Public pages
+
+- `/privacy` — public-facing Privacy Policy (source of truth:
+  `FLOWW_PRIVACY_POLICY.md`; rendered server-side, no authentication,
+  linked from the app footer). Meta app review requires this URL to be
+  publicly accessible after deployment.
+
 ## Recommended stack
 
 Frontend:

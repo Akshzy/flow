@@ -2,11 +2,14 @@
 
 ## Current phase
 
-Phase 02 — Authentication and Multi-Tenancy
+Phase 03 — Meta Developer Infrastructure (overnight run: privacy policy +
+Meta preparation)
 
 ## Status
 
-COMPLETE (pending only the git commit/tag/push recorded below)
+Phase 02 COMPLETE. Phase 03 overnight run: implementation and local
+verification COMPLETE; PUBLIC PRIVACY URL = NOT AVAILABLE (manual action:
+deploy frontend + configure Meta). See HANDOFF_03.md.
 
 ## Completed phases
 
@@ -20,21 +23,23 @@ COMPLETE (pending only the git commit/tag/push recorded below)
   (`git ls-remote origin` / `git ls-remote --tags origin`).
 - Phase 02 — Authentication and Multi-Tenancy: implemented and verified
   (see HANDOFF_02.md).
+- Phase 03 (overnight run) — Privacy Policy page + Meta preparation:
+  implemented and locally verified (see HANDOFF_03.md). Public privacy URL
+  NOT AVAILABLE until deployment (manual action recorded).
 
 ## Current objective
 
-Phase 2 is complete. Do not start Phase 3 until the phase-02-complete
-handoff is reviewed.
+Phase 3 overnight run is complete. Do not start Phase 4 until the
+phase-03-complete handoff is reviewed.
 
 ## Last verified commit
 
-The phase-02 commit (see `git log` after the Phase 2 checkpoint; hash recorded
-in the Phase 2 final report).
+The phase-03 commit (see `git log` after the Phase 3 checkpoint).
 
 ## Last verified tag
 
-`phase-01-complete` (pushed + verified remotely). The `phase-02-complete` tag
-is created at the Phase 2 checkpoint.
+`phase-01-complete` and `phase-02-complete` (both pushed + verified
+remotely). The `phase-03-complete` tag is created at the Phase 3 checkpoint.
 
 ## Phase 2 evidence summary
 
@@ -52,6 +57,23 @@ is created at the Phase 2 checkpoint.
 - Tenant isolation: cross-tenant GET/PATCH/DELETE → 403, forged UUID → 404,
   list scoping, data-layer IDOR checks — tested AND verified against the
   live running application (A→A 200; A→B 403; B→A 403; no token 401).
+
+## Phase 3 (overnight run) evidence summary
+
+- `/privacy` page: server component rendering the complete policy from
+  `FLOWW_PRIVACY_POLICY.md` (17 sections, 7 [TO BE COMPLETED] placeholders
+  preserved verbatim and styled distinctly); footer link added to the app
+  layout (additive only).
+- Verified: /privacy → HTTP 200 without authentication (live); build
+  prerenders it (7/7 pages); tsc + eslint exit 0; backend 109/109 and
+  frontend 18/18 tests pass (no regressions).
+- Meta: existing app is owner-attested only (NOT technically verified);
+  official docs site reachable but detailed requirements UNKNOWN
+  (client-rendered content); real Meta API verification BLOCKED (no
+  credentials in this environment; owner unavailable — not requested).
+- No Meta secrets or speculative Meta configuration were added (none
+  required by an implemented Phase 3 component); only NEXT_PUBLIC_API_URL
+  exists client-side (a URL, not a secret).
 
 ## Known unknowns
 

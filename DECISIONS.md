@@ -324,3 +324,56 @@ the database.
   404, list scoping, data-layer IDOR checks, deleted tenant revokes access).
 - tests/test_tenants.py: role CHECK constraint rejects 'admin' at the DB level.
 - Live run: A→A 200; A→B GET/PATCH/DELETE 403; B→A 403; no token 401.
+
+## ADR-009 — Privacy policy rendering from FLOWW_PRIVACY_POLICY.md; no speculative Meta configuration
+
+Date: Phase 3 (overnight run)
+Status: Accepted
+
+### Context
+
+Meta app review requires a publicly accessible privacy policy URL. The owner
+provided `FLOWW_PRIVACY_POLICY.md` at the repository root as the authoritative
+policy. The overnight-run scope forbids all Meta-specific implementation
+(OAuth, Embedded Signup, webhooks) — so no Phase 3 component requires Meta
+secrets yet.
+
+### Decision
+
+- `/privacy` is a server component (no client JavaScript) rendering the
+  complete policy faithfully: all 17 sections, substantive statements,
+  and the seven [TO BE COMPLETED] placeholders preserved verbatim and
+  styled distinctly (amber highlight) so incomplete information is never
+  mistaken for real contact details.
+- A minimal footer link to /privacy was added to the root layout (purely
+  additive rendering; no Phase 2 behavior changed).
+- NO Meta environment variables were added to .env.example: no implemented
+  Phase 3 component requires a secret, and the prompt forbids speculative
+  configuration. Meta configuration (app id/secret, tokens, verify token)
+  will be added by the phase that actually implements the component
+  requiring it, as server-side environment variables only.
+- The policy was checked against the actual repository implementation: no
+  material contradiction (the policy's permissive "may process / may
+  include" language accommodates the current subset; Section 11's isolation
+  claims are verified by Phase 2 tests).
+
+### Alternatives
+
+- Rendering the policy client-side from the markdown file at runtime:
+  rejected — requires unnecessary JavaScript and a markdown parser.
+- Adding META_* env vars now: rejected — speculative configuration.
+- Inventing policy placeholders' values: forbidden.
+
+### Consequences
+
+The public privacy URL remains unavailable until deployment (R-007). The
+policy page must be re-checked against the implementation whenever
+data-handling behavior changes (later phases).
+
+### Evidence
+
+- Build: /privacy prerendered (7/7 static pages, exit 0).
+- Live run: GET /privacy → HTTP 200 without authentication; heading,
+  "Last Updated: September 29, 2026", 7 rendered placeholders, and all
+  section markers present; footer link rendered on /login.
+- tsc --noEmit + eslint: exit 0.
