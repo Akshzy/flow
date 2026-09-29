@@ -377,3 +377,112 @@ data-handling behavior changes (later phases).
   "Last Updated: September 29, 2026", 7 rendered placeholders, and all
   section markers present; footer link rendered on /login.
 - tsc --noEmit + eslint: exit 0.
+
+## ADR-010 — Meta integration isolated behind a narrow adapter; unverified operations refuse to guess
+
+Date: Phase 4 (autonomous run)
+Status: Accepted
+
+### Context
+
+Phase 4 requires the WhatsApp connection capability. Official Meta resources
+(verified June 2026, see INTEGRATIONS.md) confirm Embedded Signup v4 as the
+current unified onboarding architecture and an evolving account model — but
+the detailed implementation specifics (v4 session parameters, OAuth scopes,
+token exchange endpoints, callback payload shapes, de-authorization behavior)
+could not be verified from this environment (the details live in video
+content, not extractable static documentation).
+
+### Decision
+
+- All Meta-specific logic is isolated in `app/meta/adapter.py`
+  (`MetaConnectionService`); the rest of Floww consumes normalized
+  connection state and never raw Meta HTTP calls.
+- Operations whose current behavior IS verified enough to implement
+  deterministically are implemented: lifecycle state transitions
+  (initiate/connect/disconnect), identifier normalization, credential
+  encryption at rest (via the credential store).
+- Operations whose current behavior is NOT verifiable from official
+  documentation in this environment raise a controlled
+  `MetaAuthorizationNotConfiguredError` (API-mapped as
+  `meta_not_configured`-class failures) instead of guessing undocumented
+  scopes, endpoints, or payload shapes: `build_authorization_url`,
+  `validate_authorization_callback`, `exchange_code_for_token`,
+  `deauthorize`. `META_AUTHORIZATION_IMPLEMENTED = False` documents the
+  state in code.
+- Connection initiation (the Floww-side lifecycle record) IS implemented:
+  POST /tenants/{id}/connection/initiate creates an `initiated` record and
+  states explicitly that Meta authorization is pending configuration — no
+  fake Meta success is claimed anywhere.
+
+### Alternatives
+
+- Implementing Embedded Signup with remembered v2/v3 behavior: forbidden —
+  would hard-code undocumented parameters/scopes.
+- Refusing the whole phase: rejected — the deterministic infrastructure
+  (data model, adapter boundary, credential security, status/disconnect
+  APIs, UI, tests) does not depend on the unknowns.
+
+### Consequences
+
+The seller-facing "Connect WhatsApp" action records intent and clearly
+reports that Meta authorization is pending; the UI works unchanged once the
+authorization flow is implemented in a later run. The platform-side
+de-authorization is a manual action until verified.
+
+### Evidence
+
+- tests/test_meta_adapter.py: 13 tests — state machine, normalization,
+  credential encryption at rest, all four unverified operations refuse to
+  guess.
+- tests/test_connections.py: 15 API tests — lifecycle, idempotency, 409
+  duplicate, owner-only actions, isolation, credential-free responses.
+- Live run: initiate → 200 "Meta authorization is pending configuration.";
+  no Meta API was contacted.
+
+## ADR-011 — Connection identifier model for the evolving Meta account architecture
+
+Date: Phase 4 (autonomous run)
+Status: Accepted
+
+### Context
+
+Meta's verified account-model evolution splits the WhatsApp Business Account
+(WABA) into a WhatsApp Account (WAAC, phone numbers) and a Messaging Account
+(PMA, templates/billing); BSUID will replace phone numbers for username
+adopters. The data model must not assume WABA ID = the entire WhatsApp
+identity, and must not prevent the evolution.
+
+### Decision
+
+- `platform_connections` carries only verified-shape identifier fields:
+  `waba_id` (verified current behavior — the account unit being split),
+  `phone_number_id` (verified — the owner's connection has one), and
+  `account_identifiers` (JSONB) as the extension point for the verified
+  evolving account model (WAAC/PMA identifiers when the app migrates) —
+  JSONB avoids inventing columns for unverified field names.
+- No speculative columns (no WAAC/PMA/BSUID columns with unverified names).
+- Customer identity (section 17): no customer tables exist yet (Phase 6+).
+  When they are introduced, customer identity must use an internal Floww ID
+  plus platform-specific identifiers — phone number must not be the sole
+  immutable primary key (BSUID will replace it for username adopters).
+  The connection model does not prevent that; the requirement is recorded
+  here and in HANDOFF_04 for the message-pipeline phase.
+
+### Alternatives
+
+- WABA-only columns: rejected — assumes WABA-centric model permanently.
+- WAAC/PMA columns now: rejected — field names/semantics unverified; the
+  owner's app is on the legacy model (no such IDs exist yet).
+
+### Consequences
+
+The adapter's `connect()` accepts `account_identifiers` for the extension
+point. The message pipeline phase must design customer identity around an
+internal ID + platform identifiers.
+
+### Evidence
+
+- Official Meta resources (verified above).
+- tests/test_meta_adapter.py: `connect()` stores account_identifiers;
+  normalization keeps identifiers as strings (no precision loss).

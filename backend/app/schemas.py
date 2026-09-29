@@ -53,3 +53,26 @@ class TenantResponse(BaseModel):
     status: str
     created_at: datetime
     role: str | None = None
+
+
+class ConnectionResponse(BaseModel):
+    """Connection status. Never includes credential material or raw Meta
+    payloads."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID | None = None
+    platform: str
+    status: str
+    waba_id: str | None = None
+    phone_number_id: str | None = None
+    connected_at: datetime | None = None
+    disconnected_at: datetime | None = None
+
+
+class ConnectionInitiateResponse(BaseModel):
+    """Response for the connection-initiation action."""
+
+    platform: str
+    status: str
+    detail: str | None = None

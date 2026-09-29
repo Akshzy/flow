@@ -11,7 +11,6 @@
 """
 
 import logging
-import sys
 from typing import Any
 
 import structlog
@@ -91,7 +90,12 @@ def configure_logging(level: str = "INFO", json_output: bool = False) -> None:
             renderer,
         ],
         wrapper_class=structlog.make_filtering_bound_logger(numeric_level),
-        logger_factory=structlog.PrintLoggerFactory(file=sys.stdout),
+        # No file argument: PrintLoggerFactory() resolves sys.stdout at logger
+        # creation time (per call, since cache_logger_on_first_use=False), so
+        # the stream is never a stale reference — binding sys.stdout here
+        # would capture the object at configure time, which breaks (I/O on a
+        # closed stream) after stdout capture is restored (e.g. pytest).
+        logger_factory=structlog.PrintLoggerFactory(),
         cache_logger_on_first_use=False,
     )
 

@@ -11,3 +11,4 @@ Track:
 | R-005 | Secret leakage | Critical | Low | Secret scanning + env/secrets | Open |
 | R-006 | Session token theft (localStorage XSS) | High | Low | Tokens hashed at rest; logout invalidation; cookie hardening in Phase 13 | Open |
 | R-007 | Privacy policy not publicly hosted — Meta app review blocked | Medium | High | Deploy frontend; configure Meta Privacy Policy URL to public /privacy | Open — MANUAL ACTION REQUIRED |
+| R-008 | Embedded Signup v4 specifics unverified (scopes/tokens/callbacks) — implementation blocked | High | High | Adapter refuses to guess; verify official docs in the implementing phase | Open — documented in ADR-010 |

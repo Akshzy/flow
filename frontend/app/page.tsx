@@ -123,12 +123,20 @@ export default function Home() {
         {user && (
           <div className="flex flex-col items-end gap-2">
             <span className="text-sm text-slate-600">{user.email}</span>
-            <button
-              onClick={handleLogout}
-              className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium hover:bg-slate-50"
-            >
-              Sign out
-            </button>
+            <div className="flex gap-2">
+              <Link
+                href="/settings"
+                className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium hover:bg-slate-50"
+              >
+                Settings
+              </Link>
+              <button
+                onClick={handleLogout}
+                className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium hover:bg-slate-50"
+              >
+                Sign out
+              </button>
+            </div>
           </div>
         )}
       </header>

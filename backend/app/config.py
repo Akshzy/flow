@@ -37,6 +37,11 @@ class Settings(BaseSettings):
     log_json: bool = False
     session_ttl_hours: int = 168  # auth session lifetime (default: 7 days)
     cors_origins: str = "http://localhost:3000"  # comma-separated allowed origins
+    # Fernet master key for encrypting stored platform-connection credentials
+    # (generate with: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())")
+    # Optional: the app starts without it; storing connection credentials
+    # fails clearly until it is configured.
+    credential_encryption_key: str | None = None
 
 
 def _validation_field_names(exc: ValidationError) -> str:

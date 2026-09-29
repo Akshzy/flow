@@ -2,14 +2,15 @@
 
 ## Current phase
 
-Phase 03 — Meta Developer Infrastructure (overnight run: privacy policy +
-Meta preparation)
+Phase 04 — WhatsApp Business Connection (autonomous run)
 
 ## Status
 
-Phase 02 COMPLETE. Phase 03 overnight run: implementation and local
-verification COMPLETE; PUBLIC PRIVACY URL = NOT AVAILABLE (manual action:
-deploy frontend + configure Meta). See HANDOFF_03.md.
+Phases 01-03 COMPLETE (checkpoints preserved and pushed). Phase 04:
+connection foundation implemented and locally verified; Embedded Signup
+authorization flow BLOCKED (unverified current Meta specifics — adapter
+refuses to guess, ADR-010); REAL META API VERIFICATION = BLOCKED (no
+credentials available). See HANDOFF_04.md.
 
 ## Completed phases
 
@@ -26,6 +27,10 @@ deploy frontend + configure Meta). See HANDOFF_03.md.
 - Phase 03 (overnight run) — Privacy Policy page + Meta preparation:
   implemented and locally verified (see HANDOFF_03.md). Public privacy URL
   NOT AVAILABLE until deployment (manual action recorded).
+- Phase 04 (autonomous run) — WhatsApp connection foundation: implemented
+  and locally verified (see HANDOFF_04.md). Embedded Signup authorization
+  flow NOT implemented (unverified specifics); privacy policy updated with
+  owner-provided operator/contact/website details.
 
 ## Current objective
 

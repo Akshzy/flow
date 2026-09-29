@@ -35,6 +35,7 @@ from app.db import create_engine, create_session_factory, describe_url, ping
 from app.logging import configure_logging, get_request_id
 from app.middleware import RequestIdMiddleware
 from app.routers import auth as auth_router
+from app.routers import connections as connections_router
 from app.routers import tenants as tenants_router
 
 _HTTP_ERROR_CODES = {
@@ -185,6 +186,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     app.include_router(auth_router.router)
     app.include_router(tenants_router.router)
+    app.include_router(connections_router.router)
 
     @app.get("/ready")
     async def ready(request: Request) -> JSONResponse:

@@ -11,18 +11,10 @@ export const metadata: Metadata = {
  * Floww Privacy Policy (public route, no authentication required).
  *
  * Source of truth: FLOWW_PRIVACY_POLICY.md at the repository root. The
- * content below faithfully represents that policy, including all
- * [TO BE COMPLETED] placeholders. Placeholders are styled distinctly so
- * incomplete information is never mistaken for real contact details.
+ * content below faithfully represents that policy (operator and contact
+ * details were provided by the owner; no legal entity is claimed). Re-check
+ * this page against the policy whenever data-handling behavior changes.
  */
-
-function Placeholder() {
-  return (
-    <span className="rounded bg-amber-100 px-1.5 py-0.5 font-medium text-amber-900">
-      [TO BE COMPLETED]
-    </span>
-  );
-}
 
 function Section({
   id,
@@ -93,16 +85,17 @@ export default function PrivacyPolicyPage() {
         <p>Floww is operated by:</p>
         <ul className="list-none space-y-1 pl-0">
           <li>
-            <strong>Legal/Business Name:</strong> <Placeholder />
+            <strong>Operator:</strong> Akshay K Prasad (an individual
+            developer; Floww is not currently represented as a registered
+            company or legal entity)
           </li>
           <li>
-            <strong>Contact Email:</strong> <Placeholder />
+            <strong>Contact Email:</strong> akshaykprasad17@gmail.com
           </li>
           <li>
-            <strong>Website:</strong> <Placeholder />
+            <strong>Website:</strong> https://flow-psi-lac.vercel.app/
           </li>
         </ul>
-        <p>Do not replace these placeholders with invented information.</p>
       </Section>
 
       <Section id="information-we-process" title="2. Information We Process">
@@ -345,9 +338,7 @@ export default function PrivacyPolicyPage() {
           Floww account or information processed by Floww on their behalf.
         </p>
         <p>Deletion requests can be submitted through:</p>
-        <p>
-          Email: <Placeholder />
-        </p>
+        <p>Email: akshaykprasad17@gmail.com</p>
         <p>Subject: Floww Data Deletion Request</p>
         <p>
           Please include enough information for us to identify the relevant
@@ -461,13 +452,15 @@ export default function PrivacyPolicyPage() {
         <p>Privacy Contact:</p>
         <ul className="list-none space-y-1 pl-0">
           <li>
-            <strong>Legal/Business Name:</strong> <Placeholder />
+            <strong>Operator:</strong> Akshay K Prasad (an individual
+            developer; Floww is not currently represented as a registered
+            company or legal entity)
           </li>
           <li>
-            <strong>Email:</strong> <Placeholder />
+            <strong>Email:</strong> akshaykprasad17@gmail.com
           </li>
           <li>
-            <strong>Website:</strong> <Placeholder />
+            <strong>Website:</strong> https://flow-psi-lac.vercel.app/
           </li>
         </ul>
         <p>

@@ -19,11 +19,10 @@ purpose of organizing customer inquiries and orders.
 
 Floww is operated by:
 
-Legal/Business Name: [TO BE COMPLETED]
-Contact Email: [TO BE COMPLETED]
-Website: [TO BE COMPLETED]
-
-Do not replace these placeholders with invented information.
+Operator: Akshay K Prasad (an individual developer; Floww is not currently
+represented as a registered company or legal entity)
+Contact Email: akshaykprasad17@gmail.com
+Website: https://flow-psi-lac.vercel.app/
 
 2. INFORMATION WE PROCESS
 
@@ -205,7 +204,7 @@ account or information processed by Floww on their behalf.
 
 Deletion requests can be submitted through:
 
-Email: [TO BE COMPLETED]
+Email: akshaykprasad17@gmail.com
 
 Subject: Floww Data Deletion Request
 
@@ -293,9 +292,10 @@ material changes are made.
 
 Privacy Contact:
 
-Legal/Business Name: [TO BE COMPLETED]
-Email: [TO BE COMPLETED]
-Website: [TO BE COMPLETED]
+Operator: Akshay K Prasad (an individual developer; Floww is not currently
+represented as a registered company or legal entity)
+Email: akshaykprasad17@gmail.com
+Website: https://flow-psi-lac.vercel.app/
 
 For data deletion requests, use the subject:
 

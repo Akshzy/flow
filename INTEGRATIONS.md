@@ -49,6 +49,50 @@ Record exact verified facts in the relevant phase evidence.
 - Privacy Policy URL for Meta app review: /privacy exists in the app;
   PUBLIC PRIVACY URL = NOT AVAILABLE (no public deployment yet).
 
+### Phase 04 verification record (autonomous run)
+
+Official Meta resources consulted (each fetched once, HTTP 200):
+
+1. "Unified Onboarding on WhatsApp" (June 16, 2026, developers.meta.com,
+   by a Meta Partner Engineer) — VERIFIED: "Embedded Signup v4 is a new
+   unified onboarding architecture that allows developers to integrate
+   WhatsApp, Messenger, and Instagram Direct APIs through a single
+   streamlined flow instead of separate integrations", with a migration
+   path from legacy v2/v3.
+2. "WhatsApp Account Model Evolution" (June 16, 2026, by a Meta Business
+   Engineer) — VERIFIED: "A new account architecture for the WhatsApp
+   Business Platform splits the existing WhatsApp Business Account (WABA)
+   into two types: a WhatsApp Account (WAAC) for phone numbers and a
+   Messaging Account (PMA) for templates and billing", enabling a single
+   phone number to be shared across multiple partners/integrations while
+   keeping billing separate; changes affect Embedded Signup and Cloud API
+   calls.
+3. "WhatsApp Usernames" (June 16, 2026, by Meta Business/Partner
+   Engineers) — VERIFIED: WhatsApp is introducing Usernames and a new
+   backend identifier, the Business Scoped User ID (BSUID), which will
+   replace phone numbers for users who adopt usernames; includes the
+   30-day phone number visibility rule and the contact-book service /
+   REQUEST_CONTACT_INFO button.
+
+Still UNKNOWN (detailed implementation specifics live in the video
+content/dashboard, not the extractable static documentation — and no
+Meta implementation decisions requiring them were made in this run):
+
+- exact Embedded Signup v4 session/configuration parameters
+- exact OAuth scopes/permissions for the authorization flow
+- exact token exchange endpoints and request/response shapes
+- exact authorization callback payload structures
+- current de-authorization endpoint/behavior
+- applicability of the Admin Verification path to this app's setup
+
+REAL META API VERIFICATION = BLOCKED — required credentials unavailable in
+this environment; the owner's access token was never requested, printed,
+logged, or stored.
+
+PUBLIC META CALLBACK = BLOCKED — the backend is not publicly deployed; the
+frontend is deployed at https://flow-psi-lac.vercel.app/ but the backend
+callback infrastructure is not available.
+
 ## Instagram
 
 Verify current official requirements before implementation, including:
