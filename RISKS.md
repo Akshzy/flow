@@ -12,3 +12,4 @@ Track:
 | R-006 | Session token theft (localStorage XSS) | High | Low | Tokens hashed at rest; logout invalidation; cookie hardening in Phase 13 | Open |
 | R-007 | Privacy policy not publicly hosted — Meta app review blocked | Medium | High | Deploy frontend; configure Meta Privacy Policy URL to public /privacy | Open — MANUAL ACTION REQUIRED |
 | R-008 | Embedded Signup v4 specifics unverified (scopes/tokens/callbacks) — implementation blocked | High | High | Adapter refuses to guess; verify official docs in the implementing phase | Open — documented in ADR-010 |
+| R-009 | Production webhook unauthenticated exposure | Critical | Low | Simulator auth env-gated (disabled in production); endpoint blocked in production (503) until the Meta signature scheme is verified | Mitigated (blocked by design) |

@@ -37,11 +37,17 @@ class Settings(BaseSettings):
     log_json: bool = False
     session_ttl_hours: int = 168  # auth session lifetime (default: 7 days)
     cors_origins: str = "http://localhost:3000"  # comma-separated allowed origins
-    # Fernet master key for encrypting stored platform-connection credentials
-    # (generate with: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())")
+    # Fernet master key for encrypting stored platform-connection credentials.
     # Optional: the app starts without it; storing connection credentials
-    # fails clearly until it is configured.
+    # fails clearly until it is configured. See .env.example for generation.
     credential_encryption_key: str | None = None
+    # SIMULATOR_ONLY webhook signing secret (server-controlled). Used only in
+    # development/test; disabled in production (the real Meta signature
+    # scheme is not implemented yet — the production webhook is blocked).
+    simulator_signing_secret: str | None = None
+    # Documented webhook request-size limit.
+    # Documented webhook request-size limit (1 MiB).
+    webhook_max_body_bytes: int = 1_048_576
 
 
 def _validation_field_names(exc: ValidationError) -> str:

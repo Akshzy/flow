@@ -50,9 +50,7 @@ class MetaAuthorizationNotConfiguredError(Exception):
     operations refuse to guess.
     """
 
-    def __init__(
-        self, message: str = "Meta authorization is not configured yet."
-    ) -> None:
+    def __init__(self, message: str = "Meta authorization is not configured yet.") -> None:
         super().__init__(message)
 
 
@@ -119,12 +117,8 @@ class MetaConnectionService:
         connection.account_identifiers = account_identifiers
         if credentials is not None:
             if self._credential_store is None:
-                raise MetaAuthorizationNotConfiguredError(
-                    "Credential storage is not configured."
-                )
-            connection.credentials_encrypted = self._credential_store.encrypt(
-                credentials
-            )
+                raise MetaAuthorizationNotConfiguredError("Credential storage is not configured.")
+            connection.credentials_encrypted = self._credential_store.encrypt(credentials)
         if user_id is not None:
             connection.connected_by_user_id = user_id
         connection.connected_at = now
@@ -180,9 +174,7 @@ class MetaConnectionService:
         verified from official documentation in this environment. No
         speculative endpoint is contacted; the code is never logged.
         """
-        raise MetaAuthorizationNotConfiguredError(
-            "Meta token exchange has not been verified yet."
-        )
+        raise MetaAuthorizationNotConfiguredError("Meta token exchange has not been verified yet.")
 
     def deauthorize(self, connection: PlatformConnection) -> None:
         """Revoke the platform-side authorization.

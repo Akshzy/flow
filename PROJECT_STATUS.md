@@ -2,15 +2,16 @@
 
 ## Current phase
 
-Phase 04 — WhatsApp Business Connection (autonomous run)
+Phase 05 — Deterministic Simulator + Webhook Gateway (autonomous run)
 
 ## Status
 
-Phases 01-03 COMPLETE (checkpoints preserved and pushed). Phase 04:
-connection foundation implemented and locally verified; Embedded Signup
-authorization flow BLOCKED (unverified current Meta specifics — adapter
-refuses to guess, ADR-010); REAL META API VERIFICATION = BLOCKED (no
-credentials available). See HANDOFF_04.md.
+Phases 01-04 COMPLETE (checkpoints preserved and pushed). Phase 05:
+simulator + webhook gateway implemented and locally verified (live
+end-to-end run 18/18 scenarios); the production Meta webhook boundary is
+UNKNOWN_META and explicitly blocked (503 in production) until Meta's
+verification/signature schemes are verified against official docs. See
+HANDOFF_05.md.
 
 ## Completed phases
 
@@ -31,6 +32,9 @@ credentials available). See HANDOFF_04.md.
   and locally verified (see HANDOFF_04.md). Embedded Signup authorization
   flow NOT implemented (unverified specifics); privacy policy updated with
   owner-provided operator/contact/website details.
+- Phase 05 (autonomous run) — Deterministic simulator + webhook gateway:
+  implemented and locally verified end-to-end (see HANDOFF_05.md). The
+  production Meta webhook boundary is blocked (UNKNOWN_META).
 
 ## Current objective
 

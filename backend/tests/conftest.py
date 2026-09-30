@@ -96,6 +96,8 @@ def database_url() -> str:
         f"@{info['host']}:{info['port']}/{info['database']}"
     )
     os.environ["DATABASE_URL"] = url
+    # SIMULATOR_ONLY webhook signing secret (fake, local test only).
+    os.environ.setdefault("SIMULATOR_SIGNING_SECRET", "simulator-test-secret")
     yield url
 
     # Teardown: stop the embedded server (best effort).

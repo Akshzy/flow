@@ -196,9 +196,7 @@ class PlatformConnection(Base):
             "tenant_id",
             "platform",
             unique=True,
-            postgresql_where=text(
-                "status IN ('initiated', 'connected')"
-            ),
+            postgresql_where=text("status IN ('initiated', 'connected')"),
         ),
     )
 
@@ -224,21 +222,13 @@ class PlatformConnection(Base):
     waba_id: Mapped[str | None] = mapped_column(Text, nullable=True)
     phone_number_id: Mapped[str | None] = mapped_column(Text, nullable=True)
     account_identifiers: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
-    credentials_encrypted: Mapped[bytes | None] = mapped_column(
-        LargeBinary, nullable=True
-    )
+    credentials_encrypted: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True)
     connected_by_user_id: Mapped[uuid.UUID | None] = mapped_column(
         Uuid, ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
-    initiated_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
-    connected_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
-    disconnected_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    initiated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    connected_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    disconnected_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
@@ -248,3 +238,63 @@ class PlatformConnection(Base):
         onupdate=func.now(),
         nullable=False,
     )
+
+
+class ProcessingState(enum.StrEnum):
+    """Inbound event lifecycle (Phase 5; Phase 6 consumes from here).
+
+    RECEIVED — accepted into the gateway (transient, in-transaction).
+    PENDING_PROCESSING — durably persisted, awaiting Phase 6 processing.
+    FAILED — a processing attempt recorded a failure (inspectable).
+    """
+
+    RECEIVED = "received"
+    PENDING_PROCESSING = "pending_processing"
+    FAILED = "failed"
+
+
+class WebhookEvent(Base):
+    """A persisted inbound platform event (Phase 5 gateway).
+
+    - ``dedup_key``: database-level idempotency. Scope:
+      ``platform:connection_id:external_event_id`` — tenant-scoped through
+      the resolved connection, so equivalent external IDs under different
+      connections (tenants) are distinct events.
+    - ``raw_payload``: the raw event payload as received (JSONB) — retained
+      for Phase 6 processing; never logged.
+    - ``tenant_id``/``connection_id``: resolved via server-controlled
+      connection mappings — never from client-supplied payload fields.
+    """
+
+    __tablename__ = "webhook_events"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    external_event_id: Mapped[str | None] = mapped_column(Text, nullable=True)
+    dedup_key: Mapped[str] = mapped_column(Text, unique=True, nullable=False)
+    platform: Mapped[str] = mapped_column(Text, nullable=False)
+    connection_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid,
+        ForeignKey("platform_connections.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    event_type: Mapped[str] = mapped_column(Text, nullable=False)
+    raw_payload: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    received_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    external_timestamp: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    processing_state: Mapped[str] = mapped_column(
+        Text,
+        nullable=False,
+        default=ProcessingState.RECEIVED,
+        server_default=ProcessingState.RECEIVED,
+    )
+    processing_attempts: Mapped[int] = mapped_column(default=0, server_default="0", nullable=False)
+    last_processing_error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    processed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

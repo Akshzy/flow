@@ -134,9 +134,7 @@ def test_connect_marks_connected_with_normalized_identifiers(
 
 def test_connect_encrypts_credentials_at_rest(service: MetaConnectionService):
     connection = service.initiate(uuid.uuid4(), uuid.uuid4())
-    connected = service.connect(
-        connection, credentials={"access_token": "secret-test-token-2"}
-    )
+    connected = service.connect(connection, credentials={"access_token": "secret-test-token-2"})
     assert connected.credentials_encrypted is not None
     # The plaintext token is never stored on the record.
     assert b"secret-test-token-2" not in (connected.credentials_encrypted or b"")

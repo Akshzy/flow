@@ -110,3 +110,18 @@ Verify current official requirements before implementation, including:
 Use the same evidence standard.
 
 Never treat a third-party blog as sufficient proof for a critical current API behavior when official documentation exists.
+
+### Phase 05 verification record (autonomous run)
+
+- META webhook verification (hub.mode/hub.challenge/hub.verify_token) and
+  the X-Hub-Signature-256 signature scheme: UNKNOWN_META — the webhook docs
+  pages are client-rendered (one fetch attempt per resource; only a JS shell
+  was retrievable). The production Meta webhook boundary is NOT implemented
+  and is explicitly blocked (503 webhook_not_configured in production); see
+  WEBHOOK_SPEC.md and DECISIONS.md ADR-012.
+- SIMULATOR_ONLY: a Floww-defined HMAC-SHA256 contract (raw bytes,
+  constant-time compare, env-gated) is implemented for deterministic local
+  testing — never Meta's production scheme.
+- Connection resolution uses VERIFIED_META identifiers (phone_number_id /
+  waba_id mapped in platform_connections — server-controlled mappings); the
+  payload's tenant fields are never trusted (verified by tests + live run).

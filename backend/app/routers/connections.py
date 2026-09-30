@@ -21,6 +21,7 @@ from typing import Annotated
 import structlog
 from fastapi import APIRouter, Depends, Request
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import Settings
 from app.credential_store import CredentialStore
@@ -66,7 +67,7 @@ def _connection_service(settings: Settings) -> MetaConnectionService:
     return MetaConnectionService(store)
 
 
-async def _active_connection(db, tenant_id: uuid.UUID) -> PlatformConnection | None:
+async def _active_connection(db: AsyncSession, tenant_id: uuid.UUID) -> PlatformConnection | None:
     """The tenant's active (initiated/connected) WhatsApp connection.
 
     The partial unique index guarantees at most one active connection per

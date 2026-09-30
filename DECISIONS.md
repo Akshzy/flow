@@ -486,3 +486,98 @@ internal ID + platform identifiers.
 - Official Meta resources (verified above).
 - tests/test_meta_adapter.py: `connect()` stores account_identifiers;
   normalization keeps identifiers as strings (no precision loss).
+
+## ADR-012 — SIMULATOR_ONLY webhook authentication; production Meta boundary explicitly blocked
+
+Date: Phase 5 (autonomous run)
+Status: Accepted
+
+### Context
+
+Phase 5 requires a secure webhook gateway. Meta's production webhook
+verification (hub.mode/hub.challenge/hub.verify_token) and signature scheme
+(X-Hub-Signature-256) could not be verified from official documentation in
+this environment (the docs pages are client-rendered; one fetch per resource
+per the network protocol).
+
+### Decision
+
+- The SIMULATOR_ONLY authentication is a Floww-defined contract: HMAC-SHA256
+  over the RAW request bytes with a server-controlled secret
+  (`SIMULATOR_SIGNING_SECRET`), constant-time comparison
+  (hmac.compare_digest), header `X-Floww-Simulator-Signature`.
+- Gated by environment: ENABLED only in development/test; DISABLED in
+  production.
+- In production the endpoint is explicitly blocked (503
+  `webhook_not_configured`) — no unauthenticated production endpoint exists.
+- The real Meta webhook boundary (verification handshake + signature scheme)
+  is NOT implemented and is documented as UNKNOWN_META until verified against
+  current official Meta documentation.
+- The simulator is NEVER presented as Meta's production scheme.
+
+### Alternatives
+
+- Implementing the hub.challenge + X-Hub-Signature-256 pattern from memory:
+  forbidden — remembered behavior is not verification.
+- An unauthenticated production endpoint: forbidden.
+
+### Consequences
+
+Production Meta webhooks require: verified official documentation, then
+implementing the verified boundary (a later run). The simulator contract is
+stable and documented for local testing.
+
+### Evidence
+
+- tests/test_webhook.py: 21 tests (valid/missing/invalid auth, modified
+  signed payload, disabled production mode, validation, idempotency incl.
+  concurrent, isolation, persistence failure, restart durability).
+- tests/test_simulator.py: 7 tests (deterministic fixtures, signing over raw
+  bytes, actual HTTP submission).
+- Live run: 18/18 scenarios via the real HTTP endpoint.
+
+## ADR-013 — Webhook idempotency: database-level unique dedup key
+
+Date: Phase 5 (autonomous run)
+Status: Accepted
+
+### Context
+
+Duplicate deliveries (sequential, repeated, concurrent — providers retry)
+must not create duplicate event records or duplicate downstream work. The
+spec forbids relying exclusively on application-level check-then-insert.
+
+### Decision
+
+- `webhook_events.dedup_key` (UNIQUE) — scope:
+  `platform:connection_id:external_event_id`. Tenant-scoped through the
+  resolved connection: equivalent external IDs under different connections
+  (tenants) are distinct events.
+- The external event ID is REQUIRED by the SIMULATOR_ONLY contract (missing
+  required fields → 422), so no payload-hash fallback exists — hashing whole
+  payloads does not reliably identify logical events.
+- Application-level check = fast path (deterministic duplicate response);
+  the unique constraint = concurrency backstop (racing inserts raise
+  IntegrityError → mapped to the duplicate result; exactly one event
+  survives).
+- Duplicate responses: 200 with the existing event's id + processing state —
+  never a second event, never a reset of processing history.
+
+### Alternatives
+
+- Payload-hash dedup: rejected — not a reliable logical-event identity.
+- Application-level check only: rejected — racy under concurrency.
+
+### Consequences
+
+Exactly-once HTTP delivery is NOT claimed: ingestion and persistence are
+idempotent. Duplicate deliveries are deterministic.
+
+### Evidence
+
+- tests/test_webhook.py: sequential (1 event), repeated ×4 (1 event),
+  concurrent ×6 (exactly one 202 + 5 duplicates; 1 event in DB),
+  distinct events (3 events), tenant-scoped uniqueness (same external id,
+  two connections → 2 events).
+- Live run: 6 events / 6 distinct dedup keys despite 9 duplicate deliveries
+  + 5 concurrent submissions.

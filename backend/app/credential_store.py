@@ -39,7 +39,7 @@ class CredentialStore:
             )
         try:
             self._fernet = Fernet(master_key.encode("utf-8"))
-        except ValueError as exc:
+        except ValueError:
             # Invalid key format — fail clearly, never log the key material.
             logger.warning("credentials.invalid_key_format")
             raise AppError(
