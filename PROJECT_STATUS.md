@@ -2,16 +2,14 @@
 
 ## Current phase
 
-Phase 05 — Deterministic Simulator + Webhook Gateway (autonomous run)
+Phase 06 — Deterministic Message Pipeline (autonomous run)
 
 ## Status
 
-Phases 01-04 COMPLETE (checkpoints preserved and pushed). Phase 05:
-simulator + webhook gateway implemented and locally verified (live
-end-to-end run 18/18 scenarios); the production Meta webhook boundary is
-UNKNOWN_META and explicitly blocked (503 in production) until Meta's
-verification/signature schemes are verified against official docs. See
-HANDOFF_05.md.
+Phases 01-05 COMPLETE (checkpoints preserved and pushed). Phase 06:
+message pipeline implemented and locally verified (tests + live E2E:
+simulator - HTTP gateway - processor - customer/conversation/message - all
+processed). See HANDOFF_06.md.
 
 ## Completed phases
 
@@ -35,6 +33,9 @@ HANDOFF_05.md.
 - Phase 05 (autonomous run) — Deterministic simulator + webhook gateway:
   implemented and locally verified end-to-end (see HANDOFF_05.md). The
   production Meta webhook boundary is blocked (UNKNOWN_META).
+- Phase 06 (autonomous run) — Deterministic message pipeline: implemented
+  and locally verified (see HANDOFF_06.md). Customers, platform identities,
+  conversations and messages persisted deterministically; no AI (Phase 7).
 
 ## Current objective
 

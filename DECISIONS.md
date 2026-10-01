@@ -581,3 +581,69 @@ idempotent. Duplicate deliveries are deterministic.
   two connections → 2 events).
 - Live run: 6 events / 6 distinct dedup keys despite 9 duplicate deliveries
   + 5 concurrent submissions.
+
+## ADR-014 — Deterministic message pipeline: identity model, transaction boundary, bounded retry
+
+Date: Phase 6 (autonomous run)
+Status: Accepted
+
+### Context
+
+Phase 5's gateway leaves events durably in PENDING_PROCESSING. Phase 6 must
+transform them into the internal messaging model deterministically: identity
+from explicit platform identifiers only (no LLM, no fuzzy matching), message
+idempotency at the database level, a transaction boundary that never marks an
+event processed before its downstream records are durable, and a bounded
+retry policy (no loops).
+
+### Decision
+
+- **Customer identity**: `customers` (internal Floww ID, tenant-owned) +
+  `customer_platform_identities` (UNIQUE (tenant, platform,
+  external_user_id)). The phone number is NOT the identity key — BSUID/
+  usernames will replace it for username adopters (verified Meta account-
+  model evolution). SAVEPOINT-based create-or-reuse: concurrent racing
+  inserts violate the unique constraint, roll back only the savepoint, and
+  the existing identity wins — one customer per identity.
+- **Conversation resolution**: one OPEN conversation per (tenant, customer,
+  connection) via a partial unique index, same SAVEPOINT pattern; never
+  text/similarity-based.
+- **Message identity**: UNIQUE `source_event_id` (FK to webhook_events) —
+  repeated/concurrent processing cannot create two messages.
+- **Transaction boundary**: ONE transaction per event: normalize → customer
+  → conversation → message → event PROCESSED. All-or-rollback; on failure
+  the event object is re-fetched fresh (a rollback expires ORM attributes —
+  accessing them would trigger sync IO), the failure is recorded in a
+  separate small transaction (attempts+1, last_processing_error, FAILED),
+  and the event remains retryable.
+- **Retry policy**: the processor (CLI: `python -m app.pipeline process`)
+  processes PENDING_PROCESSING events (optionally FAILED with
+  `--retry-failed`), bounded by MAX_PROCESSING_ATTEMPTS (5) — beyond the cap
+  events are skipped (no busy-spin, no infinite loop). No Redis/Celery/Kafka
+  — the simplest architecture consistent with the repository.
+
+### Alternatives
+
+- Phone-number-as-customer-key: rejected — not BSUID-safe (the verified
+  account-model evolution).
+- Fuzzy/similarity-based customer or conversation matching: forbidden by the
+  core principle (deterministic only).
+- PROCESSING state between PENDING_PROCESSING and PROCESSED: rejected — the
+  single-transaction design makes it redundant.
+- A queue/worker system: rejected — speculative infrastructure for Phase 6.
+
+### Consequences
+
+The pipeline is deterministic and idempotent (not exactly-once distributed
+processing). Message ordering is available via external_timestamp /
+created_at. Phase 7 (AI extraction) consumes PROCESSED text messages.
+
+### Evidence
+
+- tests/test_pipeline.py: 17 tests — customer (first/reuse/different/
+  concurrent), conversation (first/reuse/concurrent), message (persist,
+  repeated ×5, concurrent ×4), event lifecycle, tenant inheritance, forged
+  tenant, deterministic replay, DB failure, retry cap.
+- Live run: 16/16 gateway scenarios + `python -m app.pipeline process`
+  (processed: 5, failed: 0); DB inspection: 5 events all `processed`, 2
+  identities, 2 conversations, 5 messages, fully consistent tenant chains.

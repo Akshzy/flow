@@ -241,15 +241,19 @@ class PlatformConnection(Base):
 
 
 class ProcessingState(enum.StrEnum):
-    """Inbound event lifecycle (Phase 5; Phase 6 consumes from here).
+    """Inbound event lifecycle (Phase 5 gateway; Phase 6 pipeline).
 
     RECEIVED — accepted into the gateway (transient, in-transaction).
     PENDING_PROCESSING — durably persisted, awaiting Phase 6 processing.
-    FAILED — a processing attempt recorded a failure (inspectable).
+    PROCESSED — normalized downstream (customer/conversation/message
+    durable).
+    FAILED — a processing attempt recorded a failure (inspectable; retry
+    via the bounded processor).
     """
 
     RECEIVED = "received"
     PENDING_PROCESSING = "pending_processing"
+    PROCESSED = "processed"
     FAILED = "failed"
 
 
@@ -298,3 +302,170 @@ class WebhookEvent(Base):
     processing_attempts: Mapped[int] = mapped_column(default=0, server_default="0", nullable=False)
     last_processing_error: Mapped[str | None] = mapped_column(Text, nullable=True)
     processed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class Customer(Base):
+    """A tenant's customer (internal Floww identity — Phase 6).
+
+    Customer identity is NOT a platform identifier: the internal Floww ID is
+    the customer identity; platform-specific identity lives in
+    ``CustomerPlatformIdentity`` (internal ID + platform identifiers — the
+    phone number is not the immutable primary key; BSUID/usernames will
+    replace it for username adopters per the verified Meta account-model
+    evolution).
+    """
+
+    __tablename__ = "customers"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )
+
+
+class CustomerPlatformIdentity(Base):
+    """Mapping of a Floww customer to a platform identity (Phase 6).
+
+    Uniqueness: one identity per (tenant, platform, external_user_id) —
+    enforced at the database level so concurrent deliveries cannot create
+    duplicate customers.
+    """
+
+    __tablename__ = "customer_platform_identities"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    customer_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid,
+        ForeignKey("customers.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    platform: Mapped[str] = mapped_column(Text, nullable=False)
+    external_user_id: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    __table_args__ = (
+        UniqueConstraint(
+            "tenant_id",
+            "platform",
+            "external_user_id",
+            name="uq_customer_platform_identities_identity",
+        ),
+    )
+
+
+class ConversationStatus(enum.StrEnum):
+    OPEN = "open"
+    CLOSED = "closed"
+
+
+class Conversation(Base):
+    """A conversation between a tenant and a customer (Phase 6).
+
+    Resolution is deterministic: one OPEN conversation per
+    (tenant, customer, connection) — partial unique index; never based on
+    message text or similarity.
+    """
+
+    __tablename__ = "conversations"
+    __table_args__ = (
+        Index(
+            "uq_conversations_open",
+            "tenant_id",
+            "customer_id",
+            "connection_id",
+            unique=True,
+            postgresql_where=text("status = 'open'"),
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    customer_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid,
+        ForeignKey("customers.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    connection_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid,
+        ForeignKey("platform_connections.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    status: Mapped[str] = mapped_column(
+        Text,
+        nullable=False,
+        default=ConversationStatus.OPEN,
+        server_default=ConversationStatus.OPEN,
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )
+
+
+class Message(Base):
+    """A normalized internal message (Phase 6).
+
+    Identity/idempotency: one message per source event — UNIQUE
+    ``source_event_id`` at the database level; repeated/concurrent processing
+    of the same external event cannot create duplicate messages.
+
+    Trace chain: tenant → connection (via conversation/event) → source event
+    → customer → conversation → message.
+    """
+
+    __tablename__ = "messages"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    conversation_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid,
+        ForeignKey("conversations.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    customer_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid,
+        ForeignKey("customers.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    source_event_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid,
+        ForeignKey("webhook_events.id", ondelete="CASCADE"),
+        nullable=False,
+        unique=True,
+    )
+    external_event_id: Mapped[str | None] = mapped_column(Text, nullable=True)
+    message_type: Mapped[str] = mapped_column(Text, nullable=False)
+    body: Mapped[str | None] = mapped_column(Text, nullable=True)
+    external_timestamp: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )

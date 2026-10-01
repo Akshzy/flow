@@ -22,7 +22,7 @@ Flow (per the spec below — steps map to the implementation):
 
 | Status | Code | Meaning |
 |---|---|---|
-| 202 | — | accepted: event durably persisted as `pending_processing` |
+| 202 | — | accepted: event durably persisted as `pending_processing` (Phase 6's pipeline processes it to `processed`; failures recorded as `failed`) |
 | 200 | — | duplicate: idempotent duplicate delivery (no second event; processing history untouched) |
 | 401 | `unauthorized` | missing/invalid signature |
 | 413 | `payload_too_large` | request body exceeds the documented size limit (default 1 MiB, `WEBHOOK_MAX_BODY_BYTES`) |

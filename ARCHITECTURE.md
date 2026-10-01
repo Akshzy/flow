@@ -60,6 +60,32 @@ see WEBHOOK_SPEC.md and INTEGRATIONS.md.
 Phase 06 consumes pending events via
 `app.webhooks.service.pending_events` (durably available after restart).
 
+## Message pipeline (Phase 6)
+
+```text
+PENDING_PROCESSING events (app.webhooks.service.pending_events)
+        ↓
+Deterministic consumer (app.pipeline.consumer; CLI: python -m app.pipeline process)
+        ↓
+Normalization (app.pipeline.normalization — no LLM, no fuzzy matching)
+        ↓
+Customer resolution — internal Floww ID + platform identity mapping
+(UNIQUE per tenant/platform/external_user_id + SAVEPOINT create-or-reuse)
+        ↓
+Conversation resolution — one OPEN conversation per
+(tenant, customer, connection) via partial unique index
+        ↓
+Message persistence — UNIQUE source_event_id (one message per event)
+        ↓
+Event marked PROCESSED in the SAME transaction (all-or-rollback)
+```
+
+Identity is based on explicit platform identifiers only — never names,
+text similarity, typing style, or metadata. Failures roll the transaction
+back, increment processing_attempts, record last_processing_error, set the
+event to FAILED (inspectable), and remain bounded-retryable
+(MAX_PROCESSING_ATTEMPTS = 5; no loops).
+
 ## Recommended stack
 
 Frontend:
