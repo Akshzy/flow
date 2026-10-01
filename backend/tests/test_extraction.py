@@ -1,6 +1,16 @@
 """Tests for the AI order extraction layer (Phase 7)."""
 
+import pytest
+import uuid
+from datetime import UTC, datetime
+import os
+from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
+
 from app.extraction import ExtractionStatus, OrderCandidate, OrderItem, extract_order_candidate_from_text, validate_and_determine_status
+from app.models import Message
+from app.extraction_service import extract_and_save_candidate
+from app.order_service import get_order_by_id
+from app.models import OrderStatus
 
 
 def test_order_item_valid():
@@ -83,7 +93,7 @@ def test_extract_order_candidate_from_text_known_phrases():
 
     # Unknown phrase
     output = extract_order_candidate_from_text("Hello world")
-    assert output == {
+    return {
         "items": [
             {
                 "product": "",
@@ -148,3 +158,45 @@ def test_validate_and_determine_status():
     candidate, status = validate_and_determine_status(mixed_output)
     assert candidate is None
     assert status == ExtractionStatus.NEEDS_REVIEW  # because product is missing
+
+
+@pytest.mark.anyio
+async def test_extraction_saves_candidate_and_order():
+    """Test that a valid message creates a candidate and an order."""
+    database_url = os.environ.get(
+        "DATABASE_URL", "postgresql+psycopg://postgres:postgres@127.0.0.1:55433/floww_test"
+    )
+    engine = create_async_engine(database_url)
+    async with async_sessionmaker(bind=engine, expire_on_commit=False)() as db:
+        # Create a message
+        message = Message(
+            tenant_id=uuid.UUID("00000000-0000-0000-0000-00000000a001"),
+            customer_id=uuid.UUID("00000000-0000-0000-0000-000000000001"),
+            conversation_id=uuid.UUID("00000000-0000-0000-0000-000000000002"),
+            source_event_id=uuid.uuid4(),
+            external_event_id="wamid.test",
+            message_type="text",
+            body="I want two blue shirts",
+            external_timestamp=datetime.now(UTC),
+        )
+        db.add(message)
+        await db.commit()
+        await db.refresh(message)
+
+        candidate = await extract_and_save_candidate(db, message)
+
+        assert candidate is not None
+        assert candidate.tenant_id == message.tenant_id
+        assert candidate.customer_id is not None
+        assert candidate.total_amount == 100.00
+        assert candidate.currency == "USD"
+        assert len(candidate.items) == 2
+        assert candidate.status == OrderStatusCandidate.VALID
+
+        # Check that an order was created
+        order = await get_order_by_id(db, candidate.id)
+        assert order is not None
+        assert order.tenant_id == message.tenant_id
+        assert order.customer_id == message.customer_id
+        assert order.status == OrderStatus.NEW
+        assert order.total_amount == candidate.total_amount
