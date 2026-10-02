@@ -2,14 +2,16 @@
 
 ## Current phase
 
-Phase 06 — Deterministic Message Pipeline (autonomous run)
+Phase 07 — AI Order Extraction (RECOVERY run after an interrupted previous
+run)
 
 ## Status
 
-Phases 01-05 COMPLETE (checkpoints preserved and pushed). Phase 06:
-message pipeline implemented and locally verified (tests + live E2E:
-simulator - HTTP gateway - processor - customer/conversation/message - all
-processed). See HANDOFF_06.md.
+Phases 01-06 COMPLETE (checkpoints preserved and pushed). Phase 07:
+RECOVERED and VERIFIED — the interrupted run's corrupted/failed state was
+audited and repaired (a real model/migration mismatch, mangled tool edits,
+a weakened test, the extraction-retry gap); 207/207 backend tests pass
+(stability-verified). See HANDOFF_07.md.
 
 ## Completed phases
 
@@ -36,6 +38,12 @@ processed). See HANDOFF_06.md.
 - Phase 06 (autonomous run) — Deterministic message pipeline: implemented
   and locally verified (see HANDOFF_06.md). Customers, platform identities,
   conversations and messages persisted deterministically; no AI (Phase 7).
+- Phase 07 (recovery run) — AI Order Extraction: recovered from the
+  interrupted run (corrupted edits, a model/migration mismatch fixed via
+  migration 0007, the extraction-retry gap fixed, the corpus extended);
+  extraction candidates persist via the pipeline (verified). The AI layer
+  is a deterministic test double (SIMULATOR_ONLY); the real AI provider
+  integration is a later phase.
 
 ## Current objective
 

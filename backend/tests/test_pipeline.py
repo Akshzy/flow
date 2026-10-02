@@ -780,3 +780,175 @@ async def test_database_failure_is_recorded_not_faked(
     finally:
         await engine.dispose()
     assert state == "processed"
+
+
+# --- Phase 7 extraction integration (pipeline E2E) ----------------------------
+
+
+async def test_processed_message_creates_extraction_candidate(
+    client: httpx.AsyncClient, simulator: SimulatorClient, database_url: str
+):
+    """Simulator → HTTP gateway → event → processor → message → extraction
+    candidate persisted (the Phase 7 integration through the real
+    boundary)."""
+    sender = unique_sender()
+    message_id = f"wamid.p7-{uuid.uuid4().hex[:8]}"
+    await submit_event(
+        simulator,
+        client,
+        message_id=message_id,
+        sender=sender,
+        text="I want to order 2 large blue shirts",
+    )
+    result = await run_processor(database_url)
+    assert result.processed == 1
+
+    engine = create_async_engine(database_url)
+    try:
+        async with engine.connect() as conn:
+            row = (
+                await conn.execute(
+                    text(
+                        "SELECT c.status, c.extracted_data, m.body "
+                        "FROM order_extraction_candidates c "
+                        "JOIN messages m ON m.id = c.message_id "
+                        "WHERE m.external_event_id = :eid"
+                    ),
+                    {"eid": message_id},
+                )
+            ).first()
+    finally:
+        await engine.dispose()
+
+    assert row is not None
+    assert row[0] == "extracted"
+    assert row[1]["items"][0]["product"] == "shirt"
+    assert row[1]["items"][0]["quantity"] == 2
+    assert row[2] == "I want to order 2 large blue shirts"
+
+
+async def test_extraction_is_idempotent_across_reprocessing(
+    client: httpx.AsyncClient, simulator: SimulatorClient, database_url: str
+):
+    """Repeated processing of the same event must not create duplicate
+    extraction candidates (the service is idempotent)."""
+    sender = unique_sender()
+    message_id = f"wamid.p7-{uuid.uuid4().hex[:8]}"
+    await submit_event(
+        simulator,
+        client,
+        message_id=message_id,
+        sender=sender,
+        text="I want 2 pizzas",
+    )
+    for _ in range(3):
+        await run_processor(database_url)
+
+    engine = create_async_engine(database_url)
+    try:
+        async with engine.connect() as conn:
+            count = (
+                await conn.execute(
+                    text(
+                        "SELECT count(*) FROM order_extraction_candidates c "
+                        "JOIN messages m ON m.id = c.message_id "
+                        "WHERE m.external_event_id = :eid"
+                    ),
+                    {"eid": message_id},
+                )
+            ).scalar_one()
+    finally:
+        await engine.dispose()
+    assert count == 1
+
+
+async def test_extraction_failure_records_event_failed_and_retry_succeeds(
+    client: httpx.AsyncClient, simulator: SimulatorClient, database_url: str, monkeypatch
+):
+    """An extraction failure is recorded (event FAILED, message durable); a
+    bounded retry re-runs the extraction and completes."""
+    from app import extraction_service
+
+    sender = unique_sender()
+    message_id = f"wamid.p7-{uuid.uuid4().hex[:8]}"
+    await submit_event(
+        simulator,
+        client,
+        message_id=message_id,
+        sender=sender,
+        text="I want 2 large shirts",
+    )
+
+    original = extraction_service.extract_order_candidate_from_text
+
+    calls = {"count": 0}
+
+    def flaky_extract(text):
+        calls["count"] += 1
+        if calls["count"] == 1:
+            raise RuntimeError("forced extraction failure")
+        return original(text)
+
+    monkeypatch.setattr(extraction_service, "extract_order_candidate_from_text", flaky_extract)
+    result = await run_processor(database_url)
+    monkeypatch.undo()
+    assert result.failed == 1
+
+    # The message IS durable (the Phase 6 boundary held); the event is FAILED.
+    engine = create_async_engine(database_url)
+    try:
+        async with engine.connect() as conn:
+            state = (
+                await conn.execute(
+                    text(
+                        "SELECT processing_state FROM webhook_events e "
+                        "JOIN messages m ON m.source_event_id = e.id "
+                        "WHERE m.external_event_id = :eid"
+                    ),
+                    {"eid": message_id},
+                )
+            ).scalar_one()
+            messages = (
+                await conn.execute(
+                    text("SELECT count(*) FROM messages WHERE external_event_id = :eid"),
+                    {"eid": message_id},
+                )
+            ).scalar_one()
+    finally:
+        await engine.dispose()
+    assert state == "failed"
+    assert messages == 1  # the Phase 6 boundary held (no rollback of the message)
+
+    # Bounded retry: re-runs the extraction (idempotent service) and
+    # completes. The message already existed, so the retry reports
+    # already_processed (the event is marked processed again).
+    result = await run_processor(database_url, retry_failed=True)
+    assert result.already_processed == 1
+
+    engine = create_async_engine(database_url)
+    try:
+        async with engine.connect() as conn:
+            candidate = (
+                await conn.execute(
+                    text(
+                        "SELECT count(*) FROM order_extraction_candidates c "
+                        "JOIN messages m ON m.id = c.message_id "
+                        "WHERE m.external_event_id = :eid"
+                    ),
+                    {"eid": message_id},
+                )
+            ).scalar_one()
+            state = (
+                await conn.execute(
+                    text(
+                        "SELECT processing_state FROM webhook_events e "
+                        "JOIN messages m ON m.source_event_id = e.id "
+                        "WHERE m.external_event_id = :eid"
+                    ),
+                    {"eid": message_id},
+                )
+            ).scalar_one()
+    finally:
+        await engine.dispose()
+    assert candidate == 1  # the candidate was created on retry
+    assert state == "processed"

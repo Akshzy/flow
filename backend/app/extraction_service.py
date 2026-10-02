@@ -6,18 +6,19 @@ persist them for seller review.
 
 from __future__ import annotations
 
-from typing import Optional
-
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.extraction import ExtractionStatus, OrderCandidate, extract_order_candidate_from_text, validate_and_determine_status
+from app.extraction import (
+    extract_order_candidate_from_text,
+    validate_and_determine_status,
+)
 from app.models import Message, OrderExtractionCandidate
 
 
 async def extract_and_save_candidate(
     db: AsyncSession, message: Message
-) -> Optional[OrderExtractionCandidate]:
+) -> OrderExtractionCandidate | None:
     """Extract an order candidate from a message and persist it.
 
     If an extraction candidate already exists for the message, it is returned
@@ -37,9 +38,7 @@ async def extract_and_save_candidate(
 
     # Check if we already have an extraction candidate for this message.
     result = await db.execute(
-        select(OrderExtractionCandidate).where(
-            OrderExtractionCandidate.message_id == message.id
-        )
+        select(OrderExtractionCandidate).where(OrderExtractionCandidate.message_id == message.id)
     )
     existing = result.scalars().first()
     if existing is not None:
@@ -54,7 +53,7 @@ async def extract_and_save_candidate(
     ai_output = extract_order_candidate_from_text(message.body)
 
     # Validate and determine status.
-    candidate, status = validate_and_determine_status(ai_output)
+    _candidate, status = validate_and_determine_status(ai_output)
 
     # Persist the extraction candidate.
     extraction_candidate = OrderExtractionCandidate(

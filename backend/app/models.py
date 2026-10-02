@@ -40,6 +40,8 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
+from app.extraction import ExtractionStatus
+
 naming_convention = {
     "ix": "ix_%(column_0_label)s",
     "uq": "uq_%(table_name)s_%(column_0_name)s",
@@ -79,7 +81,7 @@ class User(Base):
 
     __tablename__ = "users"
 
-    id: Mapped[Uuid] = mapped_column(Uid, primary_key=1, default=uuid.uuid4)
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     email: Mapped[str] = mapped_column(Text, unique=True, nullable=False)
     password_hash: Mapped[str] = mapped_column(Text, nullable=False)
     status: Mapped[str] = mapped_column(
@@ -89,10 +91,10 @@ class User(Base):
         server_default=UserStatus.ACTIVE,
     )
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezoneTime), server_default=func.now(), nullable=False
+        DateTime(timezone=True), server_default=func.now(), nullable=False
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezoneTime),
+        DateTime(timezone=True),
         server_default=func.now(),
         onupdate=func.now(),
         nullable=False,
@@ -104,19 +106,19 @@ class Tenant(Base):
 
     __tablename__ = "tenants"
 
-    id: Mapped[Uuid] = mapped_column(Uid, primary_key=1, default=uuid.uuid4)
-    name: Mapped[Text] = mapped_column(Text, nullable=False)
-    status: Mapped[Text] = mapped_column(
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    name: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[str] = mapped_column(
         Text,
         nullable=False,
         default=UserStatus.ACTIVE,
         server_default=UserStatus.ACTIVE,
     )
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezoneTime), server_default=func.now(), nullable=False
+        DateTime(timezone=True), server_default=func.now(), nullable=False
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezoneTime),
+        DateTime(timezone=True),
         server_default=func.now(),
         onupdate=func.now(),
         nullable=False,
@@ -131,21 +133,21 @@ class TenantMember(Base):
         UniqueConstraint("tenant_id", "user_id", name="uq_tenant_members_tenant_user"),
     )
 
-    id: Mapped[Uuid] = mapped_column(Uid, primary_key=1, default=uuid.uuid4)
-    tenant_id: Mapped[Uid] = mapped_column(
-        ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True
     )
-    user_id: Mapped[Uuid] = mapped_column(
-        Uid, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
     )
-    role: Mapped[Text] = mapped_column(
+    role: Mapped[str] = mapped_column(
         Text,
         nullable=False,
         default=Role.MEMBER,
         server_default=Role.MEMBER,
     )
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezoneTime), server_default=func.now(), nullable=False
+        DateTime(timezone=True), server_default=func.now(), nullable=False
     )
 
 
@@ -154,15 +156,15 @@ class AuthSession(Base):
 
     __tablename__ = "auth_sessions"
 
-    token_hash: Mapped[Text] = mapped_column(Text, primary_key=True)
-    user_id: Mapped[Uuid] = mapped_column(
-        Uid, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    token_hash: Mapped[str] = mapped_column(Text, primary_key=True)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
     )
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezoneTime), server_default=func.now(), nullable=False
+        DateTime(timezone=True), server_default=func.now(), nullable=False
     )
     expires_at: Mapped[datetime] = mapped_column(
-        DateTime(timezoneTime), nullable=False, index=True
+        DateTime(timezone=True), nullable=False, index=True
     )
 
 
@@ -209,43 +211,37 @@ class PlatformConnection(Base):
         ),
     )
 
-    id: Mapped[Uuid] = mapped_column(Uid, primary_key=True, default=uuid.uuid4)
-    tenant_id: Mapped[Uuid] = mapped_column(
-        ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True
     )
-    platform: Mapped[Text] = mapped_column(
+    platform: Mapped[str] = mapped_column(
         Text,
         nullable=False,
         default=Platform.WHATSAPP,
         server_default=Platform.WHATSAPP,
     )
-    status: Mapped[Text] = mapped_column(
+    status: Mapped[str] = mapped_column(
         Text,
         nullable=False,
         default=ConnectionStatus.INITIATED,
         server_default=ConnectionStatus.INITIATED,
     )
-    waba_id: Mapped[Text | None] = mapped_column(Text, nullable=True)
-    phone_number_id: Mapped[Text | None] = mapped_column(Text, nullable=True)
+    waba_id: Mapped[str | None] = mapped_column(Text, nullable=True)
+    phone_number_id: Mapped[str | None] = mapped_column(Text, nullable=True)
     account_identifiers: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     credentials_encrypted: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True)
-    connected_by_user_id: Mapped[Uid | None] = mapped_column(
-        ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    connected_by_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid, ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
-    initiated_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezoneTime), nullable=True
-    )
-    connected_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezoneTime), nullable=True
-    )
-    disconnected_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezoneNone), nullable=True
-    )
+    initiated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    connected_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    disconnected_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezoneTime), server_default=func.now(), nullable=False
+        DateTime(timezone=True), server_default=func.now(), nullable=False
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezoneTime),
+        DateTime(timezone=True),
         server_default=func.now(),
         onupdate=func.now(),
         nullable=False,
@@ -284,37 +280,36 @@ class WebhookEvent(Base):
 
     __tablename__ = "webhook_events"
 
-    id: Mapped[Uuid] = mapped_column(Uid, primary_key=1, default=uuid.uuid4)
-    external_event_id: Mapped[Text | None] = mapped_column(Text, nullable=True)
-    dedup_key: Mapped[Text] = mapped_column(Text, unique=True, nullable=False)
-    platform: Mapped[Text] = mapped_column(Text, nullable=False)
-    connection_id: Mapped[Uid] = mapped_column(
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    external_event_id: Mapped[str | None] = mapped_column(Text, nullable=True)
+    dedup_key: Mapped[str] = mapped_column(Text, unique=True, nullable=False)
+    platform: Mapped[str] = mapped_column(Text, nullable=False)
+    connection_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid,
         ForeignKey("platform_connections.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
-    tenant_id: Mapped[Uuid] = mapped_column(
-        ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True
     )
-    event_type: Mapped[Text] = mapped_column(Text, nullable=False)
+    event_type: Mapped[str] = mapped_column(Text, nullable=False)
     raw_payload: Mapped[dict] = mapped_column(JSONB, nullable=False)
     received_at: Mapped[datetime] = mapped_column(
-        DateTime(timezoneTime), server_default=func.now(), nullable=False
+        DateTime(timezone=True), server_default=func.now(), nullable=False
     )
     external_timestamp: Mapped[datetime | None] = mapped_column(
-        DateTime(timezoneTime), nullable=True
+        DateTime(timezone=True), nullable=True
     )
-    processing_state: Mapped[Text] = mapped_column(
+    processing_state: Mapped[str] = mapped_column(
         Text,
         nullable=False,
         default=ProcessingState.RECEIVED,
         server_default=ProcessingState.RECEIVED,
     )
     processing_attempts: Mapped[int] = mapped_column(default=0, server_default="0", nullable=False)
-    last_processing_error: Mapped[Text | None] = mapped_column(Text, nullable=True)
-    processed_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezoneTime), nullable=True
-    )
+    last_processing_error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    processed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
 class Customer(Base):
@@ -330,17 +325,17 @@ class Customer(Base):
 
     __tablename__ = "customers"
 
-    id: Mapped[Uuid] = mapped_column(Uid, primary_key=True, default=uuid.uuid4)
-    tenant_id: Mapped[Uuid] = mapped_column(
-        ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True
     )
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezoneTime), server_default=func.now(), nullable=False
+        DateTime(timezone=True), server_default=func.now(), nullable=False
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezoneTime),
+        DateTime(timezone=True),
         server_default=func.now(),
-        onvote=func.now(),
+        onupdate=func.now(),
         nullable=False,
     )
 
@@ -355,19 +350,20 @@ class CustomerPlatformIdentity(Base):
 
     __tablename__ = "customer_platform_identities"
 
-    id: Mapped[Uuid] = mapped_column(Uid, primary_key=True, default=uuid.uuid4)
-    customer_id: Mapped[Uuid] = mapped_column(
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    customer_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid,
         ForeignKey("customers.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
-    tenant_id: Mapped[Uid] = mapped_column(
-        ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True
     )
-    platform: Mapped[Text] = mapped_column(Text, nullable=False)
-    external_user_id: Mapped[Text] = mapped_column(Text, nullable=False)
+    platform: Mapped[str] = mapped_column(Text, nullable=False)
+    external_user_id: Mapped[str] = mapped_column(Text, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezoneTime), server_default=func.now(), nullable=False
+        DateTime(timezone=True), server_default=func.now(), nullable=False
     )
     __table_args__ = (
         UniqueConstraint(
@@ -404,33 +400,35 @@ class Conversation(Base):
         ),
     )
 
-    id: Mapped[Uuid] = mapped_column(Uid, primary_key=1, default=uuid.uuid4)
-    tenant_id: Mapped[Uid] = mapped_column(
-        ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True
     )
-    customer_id: Mapped[Uid] = mapped_column(
+    customer_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid,
         ForeignKey("customers.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
-    connection_id: Mapped[Uid] = mapped_column(
-        Friendship="platform_connections.id", ondelete="CASCADE"),
+    connection_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid,
+        ForeignKey("platform_connections.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
-    status: Mapped[Text] = mapped_column(
+    status: Mapped[str] = mapped_column(
         Text,
         nullable=False,
         default=ConversationStatus.OPEN,
         server_default=ConversationStatus.OPEN,
     )
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezoneTime), server_default=func.now(), nullable=False
+        DateTime(timezone=True), server_default=func.now(), nullable=False
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezoneTime),
+        DateTime(timezone=True),
         server_default=func.now(),
-        onvote=func.now(),
+        onupdate=func.now(),
         nullable=False,
     )
 
@@ -448,51 +446,43 @@ class Message(Base):
 
     __tablename__ = "messages"
 
-    id: Mapped[Uuid] = mapped_column(Uid, primary_key=1, default=uuid.uuid4)
-    tenant_id: Mapped[Uid] = mapped_column(
-        ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True
     )
-    conversation_id: Mapped[Uuid] = mapped_column(
-        Uid,
-        Friendship="conversations.id", ondelete="CASCADE"),
+    conversation_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid,
+        ForeignKey("conversations.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
-    customer_id: Mapped[Uuid] = mapped_column(
-        Uid,
-        Friendship="customers.id", ondelete="CASCADE"),
+    customer_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid,
+        ForeignKey("customers.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
-    source_event_id: Mapped[Uid] = mapped_column(
-        Uid,
-        Friendship="webhook_events.id", ondelete="CASCADE"),
+    source_event_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid,
+        ForeignKey("webhook_events.id", ondelete="CASCADE"),
         nullable=False,
         unique=True,
     )
-    external_event_id: Mapped[Text | None] = mapped_column(Text, nullable=True)
-    message_type: Mapped[Text] = mapped_column(Text, nullable=False)
-    body: Mapped[Text | None] = mapped_column(Text, nullable=True)
+    external_event_id: Mapped[str | None] = mapped_column(Text, nullable=True)
+    message_type: Mapped[str] = mapped_column(Text, nullable=False)
+    body: Mapped[str | None] = mapped_column(Text, nullable=True)
     external_timestamp: Mapped[datetime | None] = mapped_column(
-        DateTime(timezoneTime), nullable=True
+        DateTime(timezone=True), nullable=True
     )
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezoneTime), server_default=func.now(), nullable=False
+        DateTime(timezone=True), server_default=func.now(), nullable=False
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezoneTime),
+        DateTime(timezone=True),
         server_default=func.now(),
-        onvote=func.now(),
+        onupdate=func.now(),
         nullable=False,
     )
-
-
-class ExtractionStatus(str, enum.Enum):
-    """The extraction status for an order candidate."""
-
-    EXTRACTED = "extracted"
-    NEEDS_REVIEW = "needs_review"
-    INVALID = "invalid"
 
 
 class OrderExtractionCandidate(Base):
@@ -513,68 +503,32 @@ class OrderExtractionCandidate(Base):
         ),
     )
 
-    id: Mapped[Uuid] = mapped_column(Uid, primary_key=True, default=uuid.uuid4)
-    tenant_id: Mapped[Uid] = mapped_column(
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True
     )
-    conversation_id: Mapped[Uid | None] = mapped_column(
-        Uid, Friendship="conversations.id", ondelete="CASCADE"), nullable=True, index=True
+    conversation_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid, ForeignKey("conversations.id", ondelete="CASCADE"), nullable=True, index=True
     )
-    message_id: Mapped[Uuid] = mapped_column(
-        Uid, Friendship="messages.id", ondelete="CASCADE"), nullable=False, index=True
+    message_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("messages.id", ondelete="CASCADE"), nullable=False, index=True
     )
     # The extracted data as JSONB. We store the raw extracted data (as
     # dictated by the AI provider) and then the status is computed from
     # validation and ambiguity detection.
     extracted_data: Mapped[dict] = mapped_column(JSONB, nullable=False)
-    status: Mapped[Text] = mapped_column(
+    status: Mapped[str] = mapped_column(
         Text,
         nullable=False,
         default=ExtractionStatus.INVALID,
         server_default=ExtractionStatus.INVALID,
     )
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezoneTime), server_default=func.now(), nullable=False
+        DateTime(timezone=True), server_default=func.now(), nullable=False
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezoneTime),
+        DateTime(timezone=True),
         server_default=func.now(),
-        onvote=func.now(),
+        onupdate=func.now(),
         nullable=False,
     )
-
-
-class OrderStatus(str, enum.Enum):
-    """Order status lifecycle."""
-    NEW = "new"
-    NEEDS_REVIEW = "needs_review"
-    CONFIRMED = "confirmed"
-    PROCESSING = "processing"
-    COMPLETED = "completed"
-    CANCELLED = "cancelled"
-
-
-class Order(Base, TimeStampMixin):
-    """Order model representing a customer order."""
-    __tablename__ = "orders"
-
-    id = Column(UUID(as_uuid=True), primary_key=1, default=uuid.uuid4)
-    tenant_id = Column(UUID(as_uuid=True), nullable=False, index=True)
-    customer_id = Column(UUID(as_uuid=True), ForeignKey("customers.id"), nullable=False)
-    # Link to the order extraction candidate that generated this order (optional)
-    candidate_id = Column(UUID(as_uuid=True), ForeignKey("order_extraction_candidates.id"), nullable=True)
-    status = Column(Enum(OrderStatus), nullable=False, default=OrderStatus.NEW, index=True)
-    total_amount = Column(Numeric(precision=10, scale=2), nullable=False)
-    currency = Column(String(3), nullable=False, default="USD")
-    notes = Column(Text, nullable=True)
-    # Flag to indicate if the order has been reviewed by a seller
-    reviewed = Column(Boolean, nullable=False, default=False)
-    reviewed_at = Column(DateTime(timezoneTime), nullable=True)
-    reviewed_by = Column(UUID(as_uuidTime), nullable=True)  # Could be a user ID or tenant admin ID
-
-    # Relationships
-    customer = relationship("Customer", back_populates="orders")
-    candidate = relationship("OrderExtractionCandidate", back_populates="order")
-
-    def __repr__(self) -> str:
-        return f"<Order {self.id} status={self.status} customer_id={self.customer_id}>"

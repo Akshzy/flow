@@ -291,24 +291,23 @@ async def process_pending_events(
             created = await process_event(db, event)
             if created:
                 result.processed += 1
-                # If a message was created, try to extract an order candidate.
-                # We need to fetch the message we just created.
-                # Note: the message was created in the transaction that just
-                # committed in process_event, so we can query for it.
-                # However, we are still in the same session and the transaction
-                # is committed, so we can safely query.
-                # We'll get the message by the source_event_id (which is the event id).
-                from app.extraction_service import extract_and_save_candidate
-                from app.models import Message
-
-                message_result = await db.execute(
-                    select(Message).where(Message.source_event_id == event.id)
-                )
-                message = message_result.scalars().first()
-                if message is not None:
-                    await extract_and_save_candidate(db, message)
             else:
                 result.already_processed += 1
+            # Phase 7 extraction: after the message is durable (its own
+            # transaction; the Phase 6 boundary is untouched). Runs for every
+            # event that reaches the message stage — INCLUDING retried events
+            # whose earlier extraction attempt failed. The service is
+            # idempotent: an existing candidate is returned without
+            # re-extraction.
+            from app.extraction_service import extract_and_save_candidate
+            from app.models import Message
+
+            message_result = await db.execute(
+                select(Message).where(Message.source_event_id == event_id)
+            )
+            message = message_result.scalars().first()
+            if message is not None:
+                await extract_and_save_candidate(db, message)
         except Exception as exc:
             # The transaction rolled back and the event object is expired;
             # re-fetch it fresh (the SELECT refreshes the identity-map
