@@ -94,10 +94,10 @@ def test_migration_from_clean_database(scratch_database: str):
     _run_alembic(scratch_database, "head")
 
     # Verify: alembic_version registered, the baseline table exists, and the
-    # Phase 2/4/5/6 authentication/tenancy/connection/event/pipeline tables exist.
+    # Phase 2-8 authentication/tenancy/connection/event/pipeline/order tables exist.
     with psycopg.connect(_psycopg_url(scratch_database)) as conn, conn.cursor() as cur:
         cur.execute("SELECT version_num FROM alembic_version")
-        assert cur.fetchone()[0] == "0007"
+        assert cur.fetchone()[0] == "0008"
 
         cur.execute(
             "SELECT column_name FROM information_schema.columns "
@@ -122,6 +122,9 @@ def test_migration_from_clean_database(scratch_database: str):
             "customer_platform_identities",
             "conversations",
             "messages",
+            "orders",
+            "order_items",
+            "order_events",
         } <= tables
 
         cur.execute(

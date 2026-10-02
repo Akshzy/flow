@@ -22,10 +22,37 @@ Initial entities:
 - `webhook_events` (Phase 5)
 - `customers`, `customer_platform_identities`, `conversations`, `messages`
   (Phase 6)
+- `orders`, `order_items`, `order_events` (Phase 8)
 - `app_meta` (Phase 1 foundation)
 
-`orders`, `order_items`, `ai_extractions` and `audit_logs` arrive in the
-phases that require them (Phase 7+). No order/AI tables exist yet.
+`ai_extractions` (as a distinct table name) and generic `audit_logs` are
+covered by `order_extraction_candidates` (Phase 7) and `order_events`
+(Phase 8); anything else arrives with a concrete requirement.
+
+## Phase 8 order entities
+
+- `orders` — tenant-owned; the customer from the Phase 6 customer model (via
+  the proven chain candidate → message → customer); UNIQUE
+  `extraction_candidate_id` (one order per candidate — database-level
+  idempotency); the authoritative lifecycle status; NO price fields (none
+  exist in the extraction contract — nothing is invented).
+- `order_items` — preserve the Phase 7 structured extraction result
+  (product/quantity/variant/size/color) verbatim; quantities never silently
+  change and products never silently disappear (the seller's explicit,
+  audited edit is the only mutation path).
+- `order_events` — append-only audit trail: creation, edits and every status
+  transition with the acting user; never logs secrets or message bodies.
+
+## Order creation (Phase 8)
+
+Deterministic conversion (no AI call, no fuzzy matching, no invention):
+- EXTRACTED (valid) candidate → Order NEW
+- NEEDS_REVIEW (uncertain) candidate → Order NEEDS_REVIEW (the review
+  requirement is retained; never auto-confirmed)
+- INVALID candidate → NO order (nothing valid to review)
+Idempotency: UNIQUE `extraction_candidate_id` + SAVEPOINT create-or-reuse;
+transactional: candidate + order + items commit together (a failure rolls
+everything back — no orphans, no falsely completed extraction state).
 
 ## Phase 6 pipeline entities
 

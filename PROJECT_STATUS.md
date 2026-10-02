@@ -44,6 +44,10 @@ a weakened test, the extraction-retry gap); 207/207 backend tests pass
   extraction candidates persist via the pipeline (verified). The AI layer
   is a deterministic test double (SIMULATOR_ONLY); the real AI provider
   integration is a later phase.
+- Phase 08 — Order Management: implemented and verified (see
+  HANDOFF_08.md). Orders/order_items/order_events (migration 0008); the
+  deterministic candidate conversion; the enforced state machine; the
+  seller review API + frontend workflow; the audit trail.
 
 ## Current objective
 

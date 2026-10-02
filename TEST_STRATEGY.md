@@ -62,3 +62,15 @@ If a test cannot reasonably be executed, document why and classify the verificat
   gateway must never acknowledge a failed write as accepted/duplicate.
 - Restart durability: a new app instance against the same database —
   accepted events remain durably available; duplicates stay deterministic.
+
+## Phase 08 additions (order management)
+
+- The state machine is verified by valid AND invalid transition tests
+  (invalid transitions must never silently succeed).
+- Transaction rollback: forced mid-transaction failures must leave no orphan
+  orders/items and no falsely completed extraction state.
+- Idempotency: repeated and concurrent candidate conversion → one order.
+- Tenant isolation: cross-tenant GET/confirm/cancel → 403; forged tenant ids
+  → 404 (no existence inference).
+- Repeated testing: transaction/concurrency/rollback tests are run 3+
+  consecutive times (deterministic behavior required).

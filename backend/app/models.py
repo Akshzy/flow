@@ -532,3 +532,125 @@ class OrderExtractionCandidate(Base):
         onupdate=func.now(),
         nullable=False,
     )
+
+
+class OrderStatus(enum.StrEnum):
+    """The authoritative order lifecycle (DATA_MODEL.md; enforced by the
+    application's state machine and tested).
+
+    NEW → (NEEDS_REVIEW) → CONFIRMED → PROCESSING → COMPLETED
+    CANCELLED / FAILED — terminal states.
+    """
+
+    NEW = "new"
+    NEEDS_REVIEW = "needs_review"
+    CONFIRMED = "confirmed"
+    PROCESSING = "processing"
+    COMPLETED = "completed"
+    CANCELLED = "cancelled"
+    FAILED = "failed"
+
+
+class Order(Base):
+    """A tenant-owned order (Phase 8) created deterministically from a
+    verified extraction candidate.
+
+    Idempotency: UNIQUE ``extraction_candidate_id`` — one order per
+    candidate, enforced at the database level (repeated/concurrent
+    conversion cannot create duplicate orders).
+
+    The seller remains authoritative: no automatic confirmation,
+    processing, or completion happens anywhere.
+    """
+
+    __tablename__ = "orders"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    customer_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid,
+        ForeignKey("customers.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    extraction_candidate_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid,
+        ForeignKey("order_extraction_candidates.id", ondelete="CASCADE"),
+        nullable=False,
+        unique=True,
+    )
+    conversation_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid, ForeignKey("conversations.id", ondelete="SET NULL"), nullable=True
+    )
+    status: Mapped[str] = mapped_column(
+        Text,
+        nullable=False,
+        default=OrderStatus.NEW,
+        server_default=OrderStatus.NEW,
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )
+
+
+class OrderItem(Base):
+    """An order item — preserves the Phase 7 structured extraction result.
+
+    Quantities never silently change; products never silently disappear:
+    the seller's explicit edit (recorded in the audit trail) is the only
+    mutation path.
+    """
+
+    __tablename__ = "order_items"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    order_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("orders.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    product: Mapped[str] = mapped_column(Text, nullable=False)
+    quantity: Mapped[int] = mapped_column(nullable=False)
+    variant: Mapped[str | None] = mapped_column(Text, nullable=True)
+    size: Mapped[str | None] = mapped_column(Text, nullable=True)
+    color: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+
+class OrderEvent(Base):
+    """Append-only audit trail for the order lifecycle (Phase 8).
+
+    Records order creation, edits and every status transition with the
+    acting user. Never logs secrets or message bodies.
+    """
+
+    __tablename__ = "order_events"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    order_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("orders.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    event: Mapped[str] = mapped_column(Text, nullable=False)
+    from_status: Mapped[str | None] = mapped_column(Text, nullable=True)
+    to_status: Mapped[str | None] = mapped_column(Text, nullable=True)
+    actor_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid, ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    detail: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )

@@ -86,6 +86,32 @@ back, increment processing_attempts, record last_processing_error, set the
 event to FAILED (inspectable), and remain bounded-retryable
 (MAX_PROCESSING_ATTEMPTS = 5; no loops).
 
+## Order management (Phase 8)
+
+```text
+Extraction candidate (Phase 7: EXTRACTED / NEEDS_REVIEW / INVALID)
+        ↓
+Deterministic conversion (app.order_service.create_order_from_candidate;
+no AI call, no invention; UNIQUE extraction_candidate_id — one order per
+candidate; candidate + order + items in one transaction)
+        ↓
+Order (NEW from a valid candidate; NEEDS_REVIEW from an uncertain one;
+INVALID candidates create no order)
+        ↓
+Seller review API (tenant-scoped, OWNER-only actions; the confirm action IS
+the human-review decision — never automatic)
+        ↓
+Enforced state machine (app.order_service.VALID_TRANSITIONS; invalid
+transitions → 400 invalid_transition; every transition audited in
+order_events)
+        ↓
+CONFIRMED → PROCESSING → COMPLETED; CANCELLED from any non-terminal state
+```
+
+Tenant isolation: every order query is tenant-scoped; a forged/foreign order
+id resolves to 404 (no existence inference); the seller's item corrections
+are audited.
+
 ## Recommended stack
 
 Frontend:

@@ -125,6 +125,12 @@ export default function Home() {
             <span className="text-sm text-slate-600">{user.email}</span>
             <div className="flex gap-2">
               <Link
+                href="/orders"
+                className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium hover:bg-slate-50"
+              >
+                Orders
+              </Link>
+              <Link
                 href="/settings"
                 className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium hover:bg-slate-50"
               >
