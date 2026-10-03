@@ -29,6 +29,15 @@ Initial entities:
 covered by `order_extraction_candidates` (Phase 7) and `order_events`
 (Phase 8); anything else arrives with a concrete requirement.
 
+## Phase 10 response entities
+
+- `response_drafts` — the controlled response lifecycle (draft → approved →
+  sent / failed); the deterministic intent (order_confirmation/unsupported/
+  unknown); the origin (ai_suggested / seller_written); send_attempts/
+  last_send_error. The seller's explicit approval is the ONLY path to send.
+- `response_events` — append-only audit trail for the response lifecycle.
+- `tenants.responses_enabled` — the tenant-level opt-in control.
+
 ## Platform abstraction (Phase 9)
 
 Instagram is a supported platform: the connection platform CHECK includes

@@ -160,3 +160,17 @@ SIMULATOR_ONLY: the Instagram connection-identifier semantics (the
 payload's phone_number_id for Instagram connections) and the Instagram
 payload contract are Floww-defined for deterministic local testing — never
 production Meta proof.
+
+### Phase 10 verification record (controlled seller responses)
+
+- The Meta SEND API (send a message via the platform): UNKNOWN_META — the
+  exact send endpoint/parameters have not been verified from official
+  documentation in this environment. The response service's send workflow
+  goes through the platform adapter boundary; with no verified production
+  sender the send fails with a controlled error
+  (`platform_send_unavailable`, 503) — the response stays APPROVED
+  (retryable, bounded by MAX_SEND_ATTEMPTS=5). A fake success is never
+  reported; a deterministic test double is used for the send-success tests
+  only.
+- The Instagram Messaging doc's "Send a Message" section exists in the
+  navigation; its detailed content is client-rendered (not extractable).

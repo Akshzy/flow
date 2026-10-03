@@ -102,7 +102,11 @@ class User(Base):
 
 
 class Tenant(Base):
-    """An independent business/account — the primary isolation boundary."""
+    """An independent business/account — the primary isolation boundary.
+
+    Phase 10: ``responses_enabled`` is the tenant-level opt-in control for
+    controlled seller responses (responses cannot be sent while disabled).
+    """
 
     __tablename__ = "tenants"
 
@@ -113,6 +117,9 @@ class Tenant(Base):
         nullable=False,
         default=UserStatus.ACTIVE,
         server_default=UserStatus.ACTIVE,
+    )
+    responses_enabled: Mapped[bool] = mapped_column(
+        default=True, server_default="true", nullable=False
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
@@ -643,6 +650,128 @@ class OrderEvent(Base):
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     order_id: Mapped[uuid.UUID] = mapped_column(
         Uuid, ForeignKey("orders.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    event: Mapped[str] = mapped_column(Text, nullable=False)
+    from_status: Mapped[str | None] = mapped_column(Text, nullable=True)
+    to_status: Mapped[str | None] = mapped_column(Text, nullable=True)
+    actor_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid, ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    detail: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+
+class ResponseIntent(enum.StrEnum):
+    """Deterministic intent classification for a conversation's response
+    (Phase 10; no LLM, no fuzzy matching — derived from existing state)."""
+
+    ORDER_CONFIRMATION = "order_confirmation"
+    UNSUPPORTED = "unsupported"
+    UNKNOWN = "unknown"
+
+
+class ResponseOrigin(enum.StrEnum):
+    AI_SUGGESTED = "ai_suggested"
+    SELLER_WRITTEN = "seller_written"
+
+
+class ResponseStatus(enum.StrEnum):
+    """The controlled response lifecycle (Phase 10).
+
+    DRAFT → APPROVED → SENT; FAILED (a send failure — bounded retry).
+    The seller's explicit approval is the ONLY path to send: no automatic
+    AI → SEND transition exists.
+    """
+
+    DRAFT = "draft"
+    APPROVED = "approved"
+    SENT = "sent"
+    FAILED = "failed"
+
+
+class ResponseDraft(Base):
+    """A controlled customer-facing response (Phase 10).
+
+    - ``intent``: the deterministic classification
+      (order_confirmation/unsupported/unknown) — derived from existing state
+      (the conversation's confirmed order), never from an LLM.
+    - ``origin``: ai_suggested (a deterministic suggestion from existing
+      state) or seller_written. The UI distinguishes AI SUGGESTED from
+      SELLER APPROVED.
+    - ``status``: DRAFT → APPROVED → SENT; FAILED (a send failure — bounded
+      retry via send). The seller's explicit approval is the ONLY path to
+      send.
+    - ``content``: the response text — never logged (customer-facing
+      content).
+    """
+
+    __tablename__ = "response_drafts"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    conversation_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid,
+        ForeignKey("conversations.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    order_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid, ForeignKey("orders.id", ondelete="SET NULL"), nullable=True
+    )
+    intent: Mapped[str] = mapped_column(
+        Text,
+        nullable=False,
+        default=ResponseIntent.UNSUPPORTED,
+        server_default=ResponseIntent.UNSUPPORTED,
+    )
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    origin: Mapped[str] = mapped_column(
+        Text,
+        nullable=False,
+        default=ResponseOrigin.AI_SUGGESTED,
+        server_default=ResponseOrigin.AI_SUGGESTED,
+    )
+    status: Mapped[str] = mapped_column(
+        Text,
+        nullable=False,
+        default=ResponseStatus.DRAFT,
+        server_default=ResponseStatus.DRAFT,
+    )
+    created_by_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid, ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    send_attempts: Mapped[int] = mapped_column(default=0, server_default="0", nullable=False)
+    last_send_error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )
+
+
+class ResponseEvent(Base):
+    """Append-only audit trail for the response lifecycle (Phase 10)."""
+
+    __tablename__ = "response_events"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    response_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid,
+        ForeignKey("response_drafts.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
     tenant_id: Mapped[uuid.UUID] = mapped_column(
         Uuid, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True

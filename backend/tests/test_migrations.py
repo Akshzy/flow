@@ -97,7 +97,7 @@ def test_migration_from_clean_database(scratch_database: str):
     # Phase 2-9 authentication/tenancy/connection/event/pipeline/order tables exist.
     with psycopg.connect(_psycopg_url(scratch_database)) as conn, conn.cursor() as cur:
         cur.execute("SELECT version_num FROM alembic_version")
-        assert cur.fetchone()[0] == "0009"
+        assert cur.fetchone()[0] == "0010"
 
         cur.execute(
             "SELECT column_name FROM information_schema.columns "
@@ -125,6 +125,8 @@ def test_migration_from_clean_database(scratch_database: str):
             "orders",
             "order_items",
             "order_events",
+            "response_drafts",
+            "response_events",
         } <= tables
 
         cur.execute(

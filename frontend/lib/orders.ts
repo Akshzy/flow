@@ -40,6 +40,7 @@ export type OrderEvent = {
   to_status: string | null;
   actor_user_id: string | null;
   detail: string | null;
+  created_at?: string | null;
 };
 
 export function fetchOrders(tenantId: string): Promise<ApiResult<Order[]>> {

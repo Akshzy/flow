@@ -47,7 +47,13 @@ export default function RegisterPage() {
   }
 
   return (
-    <main className="mx-auto flex max-w-md flex-col gap-6 px-6 py-20">
+    <main className="mx-auto flex min-h-screen max-w-md flex-col justify-center gap-6 px-6 py-20">
+      <div className="flex items-center gap-2">
+        <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 text-sm font-bold text-white">
+          F
+        </span>
+        <span className="text-lg font-semibold tracking-tight text-slate-900">Floww</span>
+      </div>
       <h1 className="text-2xl font-semibold tracking-tight">
         Create your Floww account
       </h1>
@@ -93,7 +99,7 @@ export default function RegisterPage() {
         <button
           type="submit"
           disabled={submitting}
-          className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-50"
+          className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-500 disabled:opacity-50"
         >
           {submitting ? "Creating account…" : "Create account"}
         </button>

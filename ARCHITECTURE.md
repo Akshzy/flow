@@ -133,6 +133,41 @@ Tenant isolation: every order query is tenant-scoped; a forged/foreign order
 id resolves to 404 (no existence inference); the seller's item corrections
 are audited.
 
+## Controlled seller responses (Phase 10)
+
+```text
+Confirmed order (Phase 8)
+        ↓
+Deterministic intent classification (app.response_service.classify_intent —
+from existing state: a conversation with a CONFIRMED order →
+order_confirmation; else unsupported; NO LLM, no fuzzy matching)
+        ↓
+Response draft (ai_suggested — a deterministic template from the confirmed
+order's actual items; never invented prices/data)
+        ↓
+Seller review (the UI distinguishes AI SUGGESTED from SELLER WRITTEN; the
+seller may edit the draft)
+        ↓
+EXPLICIT approval (app.response_service.approve_response — the ONLY path to
+send; no automatic AI → SEND transition exists)
+        ↓
+Send (app.response_service.send_response — via the platform adapter
+boundary; the tenant's opt-in control (tenants.responses_enabled) must be
+enabled; the production Meta send is UNKNOWN_META and refused — the failure
+is recorded (last_send_error, send_attempts, bounded by MAX_SEND_ATTEMPTS=5)
+and the response stays APPROVED/retryable; NEVER a fake success)
+        ↓
+SENT (audited)
+```
+
+Frontend application shell (Phase 10): ONE consistent layout — a dark navy
+sidebar + a topbar (`components/app-shell.tsx`, the `(app)` route group) —
+with the Dashboard, Conversations (the response review UI), Orders (+ the
+detail with an explicit "Delivery address missing" state — the backend has
+no address data and it is never invented), Customers, Products (an honest
+"not available yet" state — no catalog API exists), Integrations and
+Settings.
+
 ## Recommended stack
 
 Frontend:

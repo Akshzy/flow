@@ -37,6 +37,7 @@ from app.middleware import RequestIdMiddleware
 from app.routers import auth as auth_router
 from app.routers import connections as connections_router
 from app.routers import orders as orders_router
+from app.routers import responses as responses_router
 from app.routers import tenants as tenants_router
 from app.webhooks import router as webhook_router
 
@@ -190,6 +191,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(tenants_router.router)
     app.include_router(connections_router.router)
     app.include_router(orders_router.router)
+    app.include_router(responses_router.router)
     app.include_router(webhook_router.router)
 
     @app.get("/ready")
