@@ -29,6 +29,15 @@ Initial entities:
 covered by `order_extraction_candidates` (Phase 7) and `order_events`
 (Phase 8); anything else arrives with a concrete requirement.
 
+## Platform abstraction (Phase 9)
+
+Instagram is a supported platform: the connection platform CHECK includes
+whatsapp/instagram (migration 0009); customer identity uniqueness is
+platform-scoped (UNIQUE tenant+platform+external_user_id — an Instagram
+identity never collides with a WhatsApp identity); conversations are per
+(tenant, customer, connection) — the connection carries the platform; the
+message pipeline is platform-agnostic (the canonical message contract).
+
 ## Phase 8 order entities
 
 - `orders` — tenant-owned; the customer from the Phase 6 customer model (via

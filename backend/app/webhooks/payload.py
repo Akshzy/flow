@@ -25,6 +25,11 @@ SUPPORTED_EVENT_TYPES = ("messages",)
 
 EventType = Literal["messages"]
 
+# Supported platforms (Phase 4: whatsapp; Phase 9: instagram). The platform
+# field drives the connection resolution; it defaults to whatsapp for the
+# Phase 5 contract's backward compatibility.
+PayloadPlatform = Literal["whatsapp", "instagram"]
+
 
 class SimulatorEventPayload(BaseModel):
     """SIMULATOR_ONLY inbound event contract (validated before persistence)."""
@@ -32,6 +37,7 @@ class SimulatorEventPayload(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
     type: EventType
+    platform: PayloadPlatform = "whatsapp"
     phone_number_id: str = Field(min_length=1)
     from_: str = Field(min_length=1, alias="from")
     message_id: str = Field(min_length=1)

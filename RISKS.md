@@ -13,3 +13,4 @@ Track:
 | R-007 | Privacy policy not publicly hosted — Meta app review blocked | Medium | High | Deploy frontend; configure Meta Privacy Policy URL to public /privacy | Open — MANUAL ACTION REQUIRED |
 | R-008 | Embedded Signup v4 specifics unverified (scopes/tokens/callbacks) — implementation blocked | High | High | Adapter refuses to guess; verify official docs in the implementing phase | Open — documented in ADR-010 |
 | R-009 | Production webhook unauthenticated exposure | Critical | Low | Simulator auth env-gated (disabled in production); endpoint blocked in production (503) until the Meta signature scheme is verified | Mitigated (blocked by design) |
+| R-010 | Instagram identifier/webhook semantics unverified (Messenger API for Instagram) | High | High | Platform-scoped abstraction only; reconcile with official docs in the implementing phase | Open — documented in INTEGRATIONS.md |

@@ -16,7 +16,7 @@ never include credential material or raw Meta payloads.
 """
 
 import uuid
-from typing import Annotated
+from typing import Annotated, Literal
 
 import structlog
 from fastapi import APIRouter, Depends, Request
@@ -30,6 +30,9 @@ from app.errors import AppError
 from app.meta import MetaConnectionService
 from app.models import ConnectionStatus, Platform, PlatformConnection, TenantMember
 from app.schemas import ConnectionInitiateResponse, ConnectionResponse
+
+# Supported platforms (Phase 4: whatsapp; Phase 9: instagram).
+PlatformParam = Literal["whatsapp", "instagram"]
 
 logger = structlog.get_logger("connections")
 
@@ -67,8 +70,10 @@ def _connection_service(settings: Settings) -> MetaConnectionService:
     return MetaConnectionService(store)
 
 
-async def _active_connection(db: AsyncSession, tenant_id: uuid.UUID) -> PlatformConnection | None:
-    """The tenant's active (initiated/connected) WhatsApp connection.
+async def _active_connection(
+    db: AsyncSession, tenant_id: uuid.UUID, platform: Platform
+) -> PlatformConnection | None:
+    """The tenant's active (initiated/connected) connection for a platform.
 
     The partial unique index guarantees at most one active connection per
     (tenant, platform); .first() is used defensively regardless.
@@ -77,7 +82,7 @@ async def _active_connection(db: AsyncSession, tenant_id: uuid.UUID) -> Platform
         select(PlatformConnection)
         .where(
             PlatformConnection.tenant_id == tenant_id,
-            PlatformConnection.platform == Platform.WHATSAPP,
+            PlatformConnection.platform == platform,
             PlatformConnection.status.in_([ConnectionStatus.INITIATED, ConnectionStatus.CONNECTED]),
         )
         .order_by(PlatformConnection.created_at.desc())
@@ -100,11 +105,14 @@ def _connection_response(connection: PlatformConnection) -> ConnectionResponse:
 
 @router.get("/tenants/{tenant_id}/connection", response_model=ConnectionResponse)
 async def get_connection(
-    tenant_id: uuid.UUID, membership: MemberTenant, db: SessionDep
+    tenant_id: uuid.UUID,
+    membership: MemberTenant,
+    db: SessionDep,
+    platform: PlatformParam = "whatsapp",
 ) -> ConnectionResponse:
-    connection = await _active_connection(db, tenant_id)
+    connection = await _active_connection(db, tenant_id, Platform(platform))
     if connection is None:
-        return ConnectionResponse(platform=Platform.WHATSAPP, status=ConnectionStatus.DISCONNECTED)
+        return ConnectionResponse(platform=Platform(platform), status=ConnectionStatus.DISCONNECTED)
     return _connection_response(connection)
 
 
@@ -118,26 +126,28 @@ async def initiate_connection(
     membership: OwnerTenant,
     user: CurrentUser,
     db: SessionDep,
+    platform: PlatformParam = "whatsapp",
 ) -> ConnectionInitiateResponse:
     settings: Settings = request.app.state.settings
     service = _connection_service(settings)
+    platform_enum = Platform(platform)
 
-    existing = await _active_connection(db, tenant_id)
+    existing = await _active_connection(db, tenant_id, platform_enum)
     if existing is not None and existing.status == ConnectionStatus.CONNECTED:
         raise AppError(
-            "WhatsApp is already connected for this business.",
+            f"{platform_enum.value.capitalize()} is already connected for this business.",
             code="conflict",
             status_code=409,
         )
     if existing is not None and existing.status == ConnectionStatus.INITIATED:
         # Idempotent re-initiation while the connection is not completed.
         return ConnectionInitiateResponse(
-            platform=Platform.WHATSAPP,
+            platform=platform_enum,
             status=ConnectionStatus.INITIATED,
             detail="Meta authorization is pending configuration.",
         )
 
-    connection = service.initiate(tenant_id, user.id)
+    connection = service.initiate(tenant_id, user.id, platform=platform_enum)
     db.add(connection)
     await db.commit()
     logger.info(
@@ -147,7 +157,7 @@ async def initiate_connection(
         user_id=str(user.id),
     )
     return ConnectionInitiateResponse(
-        platform=Platform.WHATSAPP,
+        platform=platform_enum,
         status=ConnectionStatus.INITIATED,
         detail="Meta authorization is pending configuration.",
     )
@@ -159,14 +169,15 @@ async def disconnect_connection(
     request: Request,
     membership: OwnerTenant,
     db: SessionDep,
+    platform: PlatformParam = "whatsapp",
 ) -> ConnectionResponse:
     settings: Settings = request.app.state.settings
     service = _connection_service(settings)
 
-    connection = await _active_connection(db, tenant_id)
+    connection = await _active_connection(db, tenant_id, Platform(platform))
     if connection is None:
         raise AppError(
-            "No active WhatsApp connection to disconnect.",
+            f"No active {platform} connection to disconnect.",
             code="not_found",
             status_code=404,
         )

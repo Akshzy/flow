@@ -169,7 +169,10 @@ class AuthSession(Base):
 
 
 class Platform(enum.StrEnum):
+    """Supported messaging platforms (Phase 4: WhatsApp; Phase 9: Instagram)."""
+
     WHATSAPP = "whatsapp"
+    INSTAGRAM = "instagram"
 
 
 class ConnectionStatus(enum.StrEnum):

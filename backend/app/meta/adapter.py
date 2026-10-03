@@ -74,17 +74,22 @@ class MetaConnectionService:
 
     # --- Lifecycle state transitions (deterministic, locally verified) ------
 
-    def initiate(self, tenant_id: uuid.UUID, user_id: uuid.UUID) -> PlatformConnection:
+    def initiate(
+        self,
+        tenant_id: uuid.UUID,
+        user_id: uuid.UUID,
+        platform: Platform = Platform.WHATSAPP,
+    ) -> PlatformConnection:
         """Create an initiated connection record.
 
         The Meta authorization step itself is not implemented yet (see
         META_AUTHORIZATION_IMPLEMENTED); this creates the lifecycle record
-        only.
+        only. Phase 9: instagram connections reuse the same lifecycle.
         """
         now = datetime.now(UTC)
         return PlatformConnection(
             tenant_id=tenant_id,
-            platform=Platform.WHATSAPP,
+            platform=platform,
             status=ConnectionStatus.INITIATED,
             connected_by_user_id=user_id,
             initiated_at=now,

@@ -50,7 +50,7 @@ async def resolve_connection(
     waba_id = payload.waba_id
 
     statement = select(PlatformConnection).where(
-        PlatformConnection.platform == Platform.WHATSAPP,
+        PlatformConnection.platform == Platform(payload.platform),
         PlatformConnection.status == ConnectionStatus.CONNECTED,
     )
     if phone_number_id:

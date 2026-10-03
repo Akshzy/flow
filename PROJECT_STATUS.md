@@ -48,6 +48,11 @@ a weakened test, the extraction-retry gap); 207/207 backend tests pass
   HANDOFF_08.md). Orders/order_items/order_events (migration 0008); the
   deterministic candidate conversion; the enforced state machine; the
   seller review API + frontend workflow; the audit trail.
+- Phase 09 — Instagram Integration: implemented and verified (see
+  HANDOFF_09.md). The platform abstraction (migration 0009); the
+  platform-aware connection API + webhook gateway; identity separation; the
+  pipeline E2E verified live. The Instagram authorization flow is
+  UNKNOWN_META (blocked; the adapter refuses to guess).
 
 ## Current objective
 

@@ -58,6 +58,7 @@ def _error_response(status_code: int, code: str, message: str) -> JSONResponse:
 
 
 @router.post("/webhooks/whatsapp")
+@router.post("/webhooks/instagram")
 async def whatsapp_webhook(request: Request, db: DbSession) -> JSONResponse:
     settings = request.app.state.settings
 

@@ -125,3 +125,38 @@ Never treat a third-party blog as sufficient proof for a critical current API be
 - Connection resolution uses VERIFIED_META identifiers (phone_number_id /
   waba_id mapped in platform_connections — server-controlled mappings); the
   payload's tenant fields are never trusted (verified by tests + live run).
+
+### Phase 09 verification record (Instagram)
+
+VERIFIED_META (official Meta documentation, fetched once per resource):
+
+- Instagram messaging for Floww's use case is "Messenger API support for
+  Instagram" (also known as the Instagram Messaging API in the Developer
+  Policies) — for Instagram PROFESSIONAL accounts (Business or Creator)
+  linked to a Facebook Page (developers.facebook.com/docs/instagram-platform).
+- Two Instagram API variants exist: "Instagram API with Instagram Login"
+  (Instagram Business/Creator accounts) and "Instagram API with Business
+  Login for Instagram" (requires a linked Facebook Page).
+- Embedded Signup v4 is a unified onboarding architecture covering WhatsApp,
+  Messenger, and Instagram Direct APIs (Phase 4's verified resource).
+- The Instagram Messaging documentation structure exists: Messages, Send a
+  Message, Webhooks, App Review, Private Replies, Story Mention, Moderate
+  Conversations API, User Profile API, Conversation Routing.
+
+UNKNOWN_META (the detailed docs pages are client-rendered; not extractable):
+
+- Exact scopes/permissions for Instagram messaging
+- Exact webhook payload structure/fields for Instagram messages
+- Exact token exchange endpoints/parameters and token lifetimes
+- Exact onboarding/session parameters (Embedded Signup v4 vs standalone)
+- Exact account identifiers (IG-scoped vs page-scoped) for connection
+  resolution
+- Webhook subscription mechanism details
+
+REAL META API VERIFICATION = BLOCKED (no credentials in this environment;
+never requested per the safety rules).
+
+SIMULATOR_ONLY: the Instagram connection-identifier semantics (the
+payload's phone_number_id for Instagram connections) and the Instagram
+payload contract are Floww-defined for deterministic local testing — never
+production Meta proof.

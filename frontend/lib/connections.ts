@@ -31,24 +31,30 @@ export type InitiateResult = {
   detail: string | null;
 };
 
+export type PlatformParam = "whatsapp" | "instagram";
+
 export function fetchConnection(
   tenantId: string,
+  platform: PlatformParam = "whatsapp",
 ): Promise<ApiResult<Connection>> {
-  return apiFetch<Connection>(`/tenants/${tenantId}/connection`);
+  return apiFetch<Connection>(`/tenants/${tenantId}/connection?platform=${platform}`);
 }
 
 export function initiateConnection(
   tenantId: string,
+  platform: PlatformParam = "whatsapp",
 ): Promise<ApiResult<InitiateResult>> {
-  return apiFetch<InitiateResult>(`/tenants/${tenantId}/connection/initiate`, {
-    method: "POST",
-  });
+  return apiFetch<InitiateResult>(
+    `/tenants/${tenantId}/connection/initiate?platform=${platform}`,
+    { method: "POST" },
+  );
 }
 
 export function disconnectConnection(
   tenantId: string,
+  platform: PlatformParam = "whatsapp",
 ): Promise<ApiResult<Connection>> {
-  return apiFetch<Connection>(`/tenants/${tenantId}/connection`, {
+  return apiFetch<Connection>(`/tenants/${tenantId}/connection?platform=${platform}`, {
     method: "DELETE",
   });
 }

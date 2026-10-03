@@ -57,6 +57,27 @@ Components: `app/webhooks/` (auth, payload, service, router) and
 boundary (hub verification + signature scheme) is UNKNOWN_META and blocked —
 see WEBHOOK_SPEC.md and INTEGRATIONS.md.
 
+## Instagram (Phase 9)
+
+Instagram reuses the existing architecture (no parallel subsystem):
+
+- the connection platform CHECK includes whatsapp/instagram (migration 0009);
+  Instagram connections reuse the lifecycle + the partial unique index +
+  credential security
+- the connection API is platform-aware (`?platform=instagram`, default
+  whatsapp — backward compatible)
+- the webhook gateway is platform-aware: the payload's `platform` field
+  (default whatsapp) drives the connection resolution; `/webhooks/instagram`
+  is a route alias for the same handler
+- customer identity uniqueness is platform-scoped (tenant + platform +
+  external_user_id) — an Instagram identity never merges with a WhatsApp
+  identity
+- the message pipeline, AI extraction and order management are platform-
+  agnostic: Instagram messages normalize into the SAME canonical message and
+  flow through the existing extraction/order pipeline
+- the Instagram authorization flow (scopes/tokens/webhook payloads) is
+  UNKNOWN_META and blocked — the adapter refuses to guess
+
 Phase 06 consumes pending events via
 `app.webhooks.service.pending_events` (durably available after restart).
 

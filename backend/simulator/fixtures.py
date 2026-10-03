@@ -18,6 +18,10 @@ SIMULATED_SENDER_B = "15550000002"
 
 CONNECTION_PHONE_NUMBER_ID = "555666444"
 CONNECTION_WABA_ID = "999888777"
+# Phase 9 (Instagram): the connection-identifier semantics for Instagram are
+# SIMULATOR_ONLY — the real Instagram identifier semantics (Messenger API for
+# Instagram) are UNKNOWN_META and must be reconciled with official docs.
+INSTAGRAM_PHONE_NUMBER_ID = "777000111"
 UNMAPPED_PHONE_NUMBER_ID = "000000000"  # no connection maps to this
 
 MESSAGE_ID_VALID_1 = "wamid.sim-0001"

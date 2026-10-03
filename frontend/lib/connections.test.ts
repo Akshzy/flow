@@ -56,7 +56,7 @@ function mockBackend() {
     const match = url.match(/\/tenants\/([0-9a-f-]+)\/connection/);
     const tenantId = match?.[1];
 
-    if (url.endsWith("/connection/initiate") && method === "POST") {
+    if (url.includes("/connection/initiate") && method === "POST") {
       if (!authed) {
         return jsonResponse(
           401,
@@ -76,7 +76,7 @@ function mockBackend() {
       });
     }
 
-    if (url.endsWith("/connection") && method === "DELETE") {
+    if (/\/connection(\?|$)/.test(url) && method === "DELETE") {
       if (!authed) {
         return jsonResponse(
           401,
@@ -100,7 +100,7 @@ function mockBackend() {
       });
     }
 
-    if (url.endsWith("/connection") && method === "GET") {
+    if (/\/connection(\?|$)/.test(url) && method === "GET") {
       if (!authed) {
         return jsonResponse(
           401,

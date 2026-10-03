@@ -29,7 +29,11 @@ from app.models import (
     User,
 )
 from app.security import hash_password
-from simulator.fixtures import CONNECTION_PHONE_NUMBER_ID, CONNECTION_WABA_ID
+from simulator.fixtures import (
+    CONNECTION_PHONE_NUMBER_ID,
+    CONNECTION_WABA_ID,
+    INSTAGRAM_PHONE_NUMBER_ID,
+)
 
 logger = structlog.get_logger("simulator.setup")
 
@@ -97,6 +101,39 @@ async def create_fixture_connection(session) -> PlatformConnection:
             connected_at=datetime.now(UTC),
         )
         session.add(connection)
+        await session.flush()
+
+    # Connected Instagram connection (Phase 9; same lifecycle abstraction).
+    # The check covers ACTIVE (initiated/connected) states — the partial
+    # unique index occupies the slot for both; an INITIATED connection is
+    # transitioned to CONNECTED (the fixture fakes the authorization
+    # completion).
+    existing_ig = await session.execute(
+        select(PlatformConnection).where(
+            PlatformConnection.tenant_id == FIXTURE_TENANT_ID,
+            PlatformConnection.platform == Platform.INSTAGRAM,
+            PlatformConnection.status.in_([ConnectionStatus.INITIATED, ConnectionStatus.CONNECTED]),
+        )
+    )
+    ig_connection = existing_ig.scalars().first()
+    if ig_connection is None:
+        session.add(
+            PlatformConnection(
+                tenant_id=FIXTURE_TENANT_ID,
+                platform=Platform.INSTAGRAM,
+                status=ConnectionStatus.CONNECTED,
+                phone_number_id=INSTAGRAM_PHONE_NUMBER_ID,
+                connected_by_user_id=FIXTURE_USER_ID,
+                connected_at=datetime.now(UTC),
+            )
+        )
+        await session.flush()
+    elif ig_connection.status == ConnectionStatus.INITIATED:
+        # Fake the authorization completion for the initiated connection —
+        # WITH the fixture identifier (the initiated record has none).
+        ig_connection.status = ConnectionStatus.CONNECTED
+        ig_connection.phone_number_id = INSTAGRAM_PHONE_NUMBER_ID
+        ig_connection.connected_at = datetime.now(UTC)
         await session.flush()
 
     await session.commit()
